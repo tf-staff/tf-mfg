@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TF-Manufacturing — Tech Foundry Power-Up</title>
+<script src="https://p.trellocdn.com/power-up.min.js"></script>
+<style>
+  :root{
+    --bg:#242528; --panel:#2b2c2f;
+    --subtle:rgba(255,255,255,.06); --subtle-h:rgba(255,255,255,.12);
+    --line:#46474b; --text:#cecfd2; --dim:#96999e; --dimmer:#85878c;
+    --head:#e2e3e5; --blue:#579dff;
+  }
+  [data-color-mode="light"] body:not(.tp-summary):not(.tp-connector){
+    --bg:#f1f2f4; --panel:#ffffff;
+    --subtle:rgba(0,0,0,.05); --subtle-h:rgba(0,0,0,.1);
+    --line:#d5d7db; --text:#33373c; --dim:#6b6f76; --dimmer:#84878d;
+    --head:#1d2125; --blue:#0c66e4;
+  }
+  *{box-sizing:border-box}
+  .hidden{display:none !important}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  body{background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased; line-height:1.4; padding:24px 16px;}
+  body.tp-summary,body.tp-connector{padding:0;background:transparent}
+  .num{font-variant-numeric:tabular-nums}
+  button{font:inherit}
+
+  .panel{max-width:720px; margin:0 auto; background:var(--panel); position:relative;
+    border:none; border-radius:10px; padding:14px 18px 14px;}
+
+  .head{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap}
+  .title{display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:14px; color:var(--head)}
+  .title svg{display:block; color:var(--dim)}
+  .savechip{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .savechip.ok{color:var(--text)}
+  .savechip.err{color:var(--head);font-weight:700;border-color:var(--head)}
+  .head-right{display:flex; align-items:center; gap:12px; margin-left:auto}
+
+  /* storage capacity meter */
+  .capwrap{display:flex; flex-direction:column; gap:2px; min-width:110px}
+  .capwrap .cl{display:flex; justify-content:space-between; font-size:10px; color:var(--dimmer); font-weight:600}
+  .capbar{height:4px; background:var(--subtle); border-radius:999px; overflow:hidden}
+  .capfill{height:100%; width:0; background:var(--dim); border-radius:999px; transition:width .3s ease}
+  .capfill.warn{background:var(--text)}
+  .capfill.over{background:var(--head)}
+
+  .addbtn{appearance:none; cursor:pointer; font-weight:700; font-size:12px; white-space:nowrap;
+    color:var(--blue); background:transparent; border:1px solid var(--line); border-radius:6px; padding:6px 13px}
+  .addbtn:hover{background:var(--subtle)}
+  .addbtn:disabled{opacity:.4; cursor:not-allowed}
+  .gearbtn{appearance:none; border:0; background:transparent; cursor:pointer; color:var(--dim);
+    font-size:15px; line-height:1; padding:5px 7px; border-radius:5px}
+  .gearbtn:hover{color:var(--head); background:var(--subtle)}
+  select.fin{appearance:none; -webkit-appearance:none; cursor:pointer;
+    background-image:linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+    background-position:calc(100% - 15px) 55%, calc(100% - 10px) 55%; background-size:5px 5px; background-repeat:no-repeat; padding-right:26px}
+  .custrow{display:flex; align-items:center; gap:8px; padding:3px 2px; font-size:12.5px}
+  .custrow .cn{font-weight:600; color:var(--head)}
+  .custrow .cw{color:var(--dimmer); font-size:11.5px; margin-left:auto; white-space:nowrap}
+  .custrow .icbtn{flex:0 0 auto}
+  .custempty{font-size:12px; color:var(--dimmer); padding:2px}
+
+  /* ===== note list ===== */
+  .empty{font-size:12.5px; color:var(--dimmer); padding:14px 4px 8px; text-align:center}
+  .note{border-top:1px solid var(--line); padding:10px 4px 11px}
+  .note:first-child{border-top:none}
+  .nhead{display:flex; align-items:center; gap:8px; min-width:0}
+  .modchip{flex:0 0 auto; font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    border-radius:4px; padding:2px 7px; color:var(--head); background:var(--subtle); border:1px solid var(--line)}
+  .ntitle{font-weight:700; font-size:13.5px; color:var(--head); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+  .ntitle i{font-style:normal; font-weight:500; color:var(--dim)}
+  .outchip{flex:0 0 auto; font-size:10.5px; font-weight:600; color:var(--dimmer); border:1px solid var(--line);
+    border-radius:999px; padding:1px 8px; white-space:nowrap}
+  .outchip.hi{color:var(--head); font-weight:700}
+  .devflag{flex:0 0 auto; font-size:11px; font-weight:700; color:var(--head); border:1px solid var(--line);
+    background:var(--subtle); border-radius:999px; padding:1px 8px; white-space:nowrap}
+  .cmflag{flex:0 0 auto; color:var(--dim); display:inline-flex; align-items:center}
+  .nmeta{margin-left:auto; flex:0 0 auto; font-size:11px; color:var(--dimmer); white-space:nowrap}
+  .nact{display:flex; gap:2px; flex:0 0 auto}
+  .icbtn{appearance:none; border:0; background:transparent; cursor:pointer; color:#6b7886;
+    font-size:13px; line-height:1; padding:4px 6px; border-radius:4px}
+  .icbtn:hover{color:var(--text); background:var(--subtle)}
+  .icbtn.del:hover{color:var(--head); background:var(--subtle-h)}
+
+  .nbody{margin-top:6px; display:flex; flex-direction:column; gap:4px}
+  .nrow{display:flex; gap:8px; font-size:12.5px; align-items:baseline}
+  .nrow .k{flex:0 0 92px; font-size:10.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--dimmer); padding-top:1px}
+  .nrow .v{flex:1 1 auto; min-width:0; color:var(--text); white-space:pre-wrap; word-break:break-word}
+  .nrow.dev .v{color:var(--head)}
+  .nrow.cmts .v{color:var(--dim); font-style:italic}
+  .reqchips{display:flex; flex-wrap:wrap; gap:4px}
+  .reqchip{font-size:10.5px; font-weight:600; color:var(--dim); background:var(--subtle); border-radius:999px; padding:1px 8px}
+
+  /* ===== add/edit form ===== */
+  .form{border:1px solid var(--line); background:var(--subtle); border-radius:8px;
+    padding:11px 12px 12px; margin:4px 0 12px; display:flex; flex-direction:column; gap:10px}
+  .form.hidden{display:none}
+  .fttl{font-size:11px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.06em}
+  .fgrp{display:flex; flex-direction:column; gap:5px}
+  .fgrp > label{font-size:11px; font-weight:700; color:var(--dim)}
+  .chips{display:flex; flex-wrap:wrap; gap:5px}
+  .chipbtn{appearance:none; cursor:pointer; font-size:12px; font-weight:600; color:var(--dim);
+    background:var(--subtle); border:1px solid transparent; border-radius:999px; padding:4px 12px}
+  .chipbtn:hover{background:var(--subtle-h); color:var(--text)}
+  .chipbtn[aria-pressed="true"]{color:var(--head); background:var(--subtle-h); border-color:var(--head)}
+  .chipbtn.req[aria-pressed="true"]{color:var(--text); background:var(--subtle-h); border-color:var(--dim)}
+  .frow2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .frow3{display:grid; grid-template-columns:1.1fr .8fr 1.1fr; gap:10px}
+  @media (max-width:560px){ .frow2,.frow3{grid-template-columns:1fr} }
+  .fin{width:100%; font:inherit; font-size:12.5px; padding:6px 9px; color:var(--text);
+    background:var(--bg); border:1px solid var(--line); border-radius:5px}
+  .fin::placeholder{color:var(--dimmer)}
+  .fin:focus{outline:0; border-color:var(--blue)}
+  textarea.fin{resize:vertical; min-height:52px; line-height:1.45}
+  .devtog{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim); font-weight:600; cursor:pointer; user-select:none}
+  .devtog input{accent-color:var(--blue); width:14px; height:14px; cursor:pointer}
+  .devtog.on{color:var(--head)}
+  .cmtog{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim); font-weight:600; cursor:pointer; user-select:none}
+  .cmtog input{accent-color:var(--blue); width:14px; height:14px; cursor:pointer}
+  .devbox{border-left:3px solid var(--dim); padding-left:9px; display:flex; flex-direction:column; gap:5px}
+  .devbox.hidden{display:none}
+  .oseg{display:inline-flex; background:var(--subtle); border-radius:6px; padding:2px; gap:2px; align-self:flex-start; flex-wrap:wrap}
+  .oseg button{appearance:none; border:0; background:transparent; color:var(--dim); cursor:pointer;
+    font-size:12px; font-weight:600; padding:4px 11px; border-radius:5px; display:inline-flex; align-items:center; gap:5px; white-space:nowrap}
+  .oseg button[aria-pressed="true"]{background:var(--subtle-h); color:var(--head)}
+  .facts{display:flex; gap:8px; justify-content:flex-end; align-items:center}
+  .fwarn{font-size:11px; font-weight:700; color:var(--head); margin-right:auto}
+  .fwarn[hidden]{display:none}
+  .fbtn{appearance:none; cursor:pointer; font-weight:700; font-size:12px; border-radius:6px; padding:7px 14px; border:0}
+  .fbtn.save{background:var(--blue); color:#1d2125}
+  [data-color-mode="light"] .fbtn.save{color:#fff}
+  .fbtn.save:hover{filter:brightness(1.08)}
+  .fbtn.save:disabled{opacity:.4; cursor:not-allowed; filter:none}
+  .fbtn.cancel{background:var(--subtle); color:var(--dim)}
+  .fbtn.cancel:hover{background:var(--subtle-h); color:var(--text)}
+
+  #verBadge{position:fixed;right:7px;bottom:6px;font-size:10px;color:#5b6b7a;opacity:.6;z-index:9;pointer-events:none}
+  body.tp-summary #verBadge,body.tp-connector #verBadge{display:none}
+
+  /* ===== Trello card-back summary view ===== */
+  html[data-color-mode="light"]{--mf-bg:#ffffff;--mf-text:#292a2e;--mf-subtle:#6b6e76;--mf-dimmer:#84878d;--mf-line:#dcdfe4;--mf-btn:rgba(0,0,0,.05)}
+  html[data-color-mode="dark"]{--mf-bg:#242528;--mf-text:#cecfd2;--mf-subtle:#96999e;--mf-dimmer:#85878c;--mf-line:#46474b;--mf-btn:rgba(255,255,255,.08)}
+  html{background:transparent}
+  body.tp-summary{background:var(--mf-bg,transparent)}
+  body.tp-summary .panel,body.tp-connector .panel{display:none}
+  body.tp-connector #summaryView{display:none}
+  #summaryView{display:none;padding:2px 4px 4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  body.tp-summary #summaryView{display:block}
+  body.tp-summary{overflow-y:auto;overflow-x:hidden}
+  .fc-empty{font-size:12.5px;color:var(--mf-subtle,#96999e);padding:5px 0 2px}
+  .fc-note{padding:4px 0 5px;border-top:1px solid var(--mf-line,#46474b)}
+  .fc-note:first-child{border-top:none;padding-top:1px}
+  .fc-l1{display:flex;align-items:center;gap:7px;min-width:0}
+  .fc-mod{flex:0 0 auto;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:1.5px 6px;color:var(--mf-text,#cecfd2);background:var(--mf-btn,rgba(255,255,255,.08));border:1px solid var(--mf-line,#46474b)}
+  .fc-ttl{font-size:12px;font-weight:700;color:var(--mf-text,#cecfd2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .fc-ttl i{font-style:normal;font-weight:500;color:var(--mf-subtle,#96999e)}
+  .fc-out{flex:0 0 auto;font-size:9.5px;font-weight:600;color:var(--mf-dimmer,#85878c);white-space:nowrap}
+  .fc-out.hi{color:var(--mf-text,#cecfd2);font-weight:700}
+  .fc-dev{flex:0 0 auto;font-size:10px;font-weight:800;color:var(--mf-text,#cecfd2)}
+  .fc-cm{flex:0 0 auto;color:var(--mf-subtle,#96999e);display:inline-flex;align-items:center}
+  .fc-by{margin-left:auto;flex:0 0 auto;font-size:10px;color:var(--mf-dimmer,#85878c);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .fc-snip{font-size:11px;color:var(--mf-subtle,#96999e);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;padding-left:2px}
+  .fc-more{font-size:11px;color:var(--mf-dimmer,#85878c);padding:4px 0 1px}
+  .sv-foot{display:flex;justify-content:flex-end;margin-top:4px}
+  .sv-ver{font-size:10px;color:var(--mf-subtle,#96999e);opacity:.6;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div id="summaryView">
+  <div id="svBody"></div>
+  <div class="sv-foot"><span class="sv-ver" id="svVer"></span></div>
+</div>
+<div id="verBadge"></div>
+
+<div class="panel">
+  <div class="head">
+    <span class="title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Manufacturing Notes</span>
+    <span class="savechip" id="saveChip" hidden></span>
+    <div class="head-right">
+      <div class="capwrap" title="Trello card storage used by this Power-Up (4 KB cap)">
+        <div class="cl"><span>Card storage</span><span class="num" id="capPct">0%</span></div>
+        <div class="capbar"><div class="capfill" id="capFill"></div></div>
+      </div>
+      <button class="gearbtn" id="gearBtn" title="Card settings" aria-label="Card settings">&#9881;&#xFE0E;</button>
+      <button class="addbtn" id="addBtn">+ Add note</button>
+    </div>
+  </div>
+
+  <div class="form hidden" id="form">
+    <span class="fttl" id="fTtl">New manufacturing note</span>
+
+    <div class="fgrp">
+      <label>Modality</label>
+      <div class="chips" id="modChips"></div>
+    </div>
+
+    <div class="fgrp" id="pfGrp" hidden>
+      <label>Platform / Technology</label>
+      <div class="chips" id="pfChips"></div>
+    </div>
+
+    <div class="frow3">
+      <div class="fgrp" id="matGrp">
+        <label>Material</label>
+        <input class="fin" id="fMat" list="matList" placeholder="Pick or type" autocomplete="off">
+        <datalist id="matList"></datalist>
+      </div>
+      <div class="fgrp" id="varGrp">
+        <label>Variant</label>
+        <input class="fin" id="fVar" list="varList" placeholder="Pick or type" autocomplete="off">
+        <datalist id="varList"></datalist>
+      </div>
+      <div class="fgrp">
+        <label>Machine / equipment</label>
+        <input class="fin" id="fMach" list="machList" placeholder="Pick or type" autocomplete="off">
+        <datalist id="machList"></datalist>
+      </div>
+    </div>
+
+    <div class="fgrp hidden" id="cutGrp" style="gap:8px">
+      <div class="frow2">
+        <div class="fgrp">
+          <label>Offset</label>
+          <input class="fin" id="fOff" list="offFitList" autocomplete="off">
+          <datalist id="offFitList"></datalist>
+        </div>
+        <div class="fgrp">
+          <label>Profile Used</label>
+          <input class="fin" id="fProf">
+        </div>
+      </div>
+      <label class="cmtog"><input type="checkbox" id="fCp"> Custom cut profile saved</label>
+      <div class="fgrp" id="cpnGrp" hidden>
+        <label>Profile name (optional)</label>
+        <input class="fin" id="fCpn">
+      </div>
+    </div>
+
+    <div class="fgrp">
+      <label>Process settings / parameters</label>
+      <input class="fin" id="fSet">
+    </div>
+
+    <div class="fgrp">
+      <label>Client-defined requirements</label>
+      <div class="chips" id="reqChips"></div>
+      <input class="fin" id="fReqx" aria-label="Requirement detail" hidden>
+    </div>
+
+    <div class="fgrp">
+      <label class="devtog" id="devTog"><input type="checkbox" id="fDev"> Deviation from SOP</label>
+      <div class="devbox hidden" id="devBox">
+        <textarea class="fin" id="fDevx"></textarea>
+      </div>
+    </div>
+
+    <div class="frow2">
+      <div class="fgrp">
+        <label>Outcome</label>
+        <div class="oseg" id="oSeg"></div>
+      </div>
+      <div class="fgrp">
+        <label>Location</label>
+        <div class="oseg" id="locSeg"></div>
+      </div>
+    </div>
+
+    <div class="fgrp">
+      <label>Notes</label>
+      <textarea class="fin" id="fNote"></textarea>
+    </div>
+
+    <div class="fgrp">
+      <label class="cmtog"><input type="checkbox" id="fCm"> Additional context provided in comments</label>
+    </div>
+
+    <div class="facts">
+      <span class="fwarn" id="fWarn" hidden></span>
+      <button class="fbtn cancel" id="fCancel">Cancel</button>
+      <button class="fbtn save" id="fSave">Save note</button>
+    </div>
+  </div>
+
+  <div class="form hidden" id="settings">
+    <span class="fttl">Card settings</span>
+
+    <div class="fgrp">
+      <label>Custom materials on this card</label>
+      <div id="custList"></div>
+    </div>
+
+    <div class="frow3">
+      <div class="fgrp">
+        <label>Material name</label>
+        <input class="fin" id="cMatName">
+      </div>
+      <div class="fgrp">
+        <label>Modality</label>
+        <select class="fin" id="cMod"></select>
+      </div>
+      <div class="fgrp">
+        <label>Platform</label>
+        <select class="fin" id="cPf"></select>
+      </div>
+    </div>
+
+    <div class="facts">
+      <span class="fwarn" id="sWarn" hidden></span>
+      <button class="fbtn cancel" id="sClose">Close</button>
+      <button class="fbtn save" id="cAdd">Add material</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+/* ============================================================================
+   TF-Manufacturing — internal manufacturing documentation Power-Up
+   Same four-mode chassis as Recharge / TF-Message:
+   - connector  : hidden iframe Trello loads for every card (no ?view=)
+   - summary    : compact read-only view on the card back (?view=summary)
+   - editor     : the full tool in a pop-out modal (?view=editor)
+   - standalone : file opened directly in a browser -> full tool (browser-local persistence)
+============================================================================ */
+var SELF = location.origin + location.pathname;
+var VERSION = '1.7';
+var _t = null, _ready = false, _saveTimer = null, _sim = false;
+var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
+
+function getParam(n){ try{ return new URLSearchParams(location.search).get(n); }catch(e){ return null; } }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+/* ----- capability catalog (Tech Foundry — Davis & Aggie Square) -----------
+   Materials may be plain strings or {n:'Family', v:['Variant', ...]}.
+   Machine home locations feed the location auto-fill (Prusa XL and the
+   Form 4B/4BL fleets live at both sites, so they don't auto-fill).        */
+var MACH_MATS = ['Aluminum','Steel','Stainless Steel','Brass','Copper','Titanium',
+  'Delrin (POM)','Acrylic (PMMA)','Nylon','PTFE (Teflon)','Polycarbonate','HDPE','UHMW','PEEK','FR4 / Garolite'];
+var FDM_MATS = [
+  {n:'PLA', v:['White','Black']}, {n:'PETG', v:['Translucent','White','Black']},
+  'ABS','ASA','TPU',{n:'PA (Nylon)'},'PC','PET',
+  {n:'CF ABS', v:['White','Black']},'CF Nylon','CF PLA','CF PETG',
+  'PVA (water-soluble)','HIPS','PEEK','PEI (Ultem)','ASA (White) + SR-30 support'];
+
+var MODS = [
+  { id:'print', name:'3D Printing', abbr:'3DP', platforms:[
+      { id:'fdm', name:'FDM/FFF',
+        mach:['Bambu Lab X1C','Bambu Lab H2D','Bambu Lab H2C','Prusa XL','Voron 2.4','Elegoo OrangeStorm Giga','Stratasys F-120','Vision Miner 22 IDEX v2'],
+        mats:FDM_MATS },
+      { id:'cffdm', name:'CF-Reinforced FDM',
+        mach:['Markforged Mark II','Bambu Lab H2C','Bambu Lab H2D'],
+        mats:[{n:'Onyx', v:['+ Continuous Carbon Fiber','+ Kevlar','+ Fiberglass']},'CF Nylon','CF ABS','CF PETG','CF PC'] },
+      { id:'mjf', name:'MJF',
+        mach:['HP Jet Fusion 5200','HP Jet Fusion 580 Color'],
+        mats:[{n:'PA12', v:['HR (gray, dyeable)','CB Color (HP 580)','Glass Bead']}] },
+      { id:'sla', name:'SLA',
+        mach:['Formlabs Form 4B','Formlabs Form 4BL','Formlabs Form 3B','Formlabs Form 3BL'],
+        mats:[
+          {n:'Basic', v:['Clear v5','Black v5','White v4','Grey v4']},
+          {n:'BioMed', v:['Clear','Amber','Black','White']},
+          {n:'Tough', v:['1500','2000']},
+          {n:'Rigid', v:['4000','10K']},
+          'Durable','Flexible 80A','Elastic 50A','High Temp','Surgical Guide','Castable Wax',
+          'Denture Base OP (animal use only)'] },
+      { id:'polyjet', name:'PolyJet',
+        mach:['Stratasys J5 MediJet','Stratasys J5 Digital Anatomy'],
+        mats:[
+          {n:'Vero Color'},{n:'VeroUltra Clear S'},{n:'Elastico', v:['Clear','Black']},'DraftWhite',
+          'MED610 (biocompatible)',{n:'Digital ABS', v:['Standard','Plus']},
+          'BoneMatrix','GelMatrix','TissueMatrix','RadioMatrix',
+          {n:'Support', v:['SUP710S (WaterJet)','WSS150 (water-soluble)']}] },
+      { id:'micro', name:'Microfluidics',
+        mach:['CADworks3D ProFluidics 285D'],
+        mats:['MasterMold for PDMS (Green)','Clear Microfluidic Resin'] },
+      { id:'filament', name:'Filament Compounding',
+        mach:['Filabot EX2'],
+        mats:['PLA','ABS','PETG','TPU','PA (Nylon)','PC','ASA','PET','PVA','PEEK','Custom blend'] },
+      { id:'pother', name:'Other' } ] },
+  { id:'laser', name:'Laser Cutting', abbr:'LSR', platforms:[
+      { id:'co2',   name:'CO2',
+        mach:['Kern LC50 LaserCELL (450W)','Kern Micro 24 (200W)'],
+        mats:['Acrylic','ABS','Delrin','HDPE','Kapton tape','Mylar','PETG','Cloth','Paper','Rubber (chlorine-free)','Teflon (thin film)','MDF','Balsa','Basswood','Birch ply','Oak','Cherry','Pine'] },
+      { id:'fiber', name:'Fiber',
+        mach:['Kern FC50 FiberCELL (1000W)'],
+        mats:['Steel','Stainless Steel','Titanium','Nickel'] },
+      { id:'lother',name:'Other' } ] },
+  { id:'mach', name:'Machining', abbr:'MCH', platforms:[
+      { id:'cncmill', name:'CNC Mill',
+        mach:['HAAS UMC 500 (5-axis)','Kent KTM-3VKF','Acer E-Mill EVS-3VS (MILLPWR G2)'],
+        mats:MACH_MATS },
+      { id:'cncrouter', name:'CNC Router',
+        mach:['HAAS SR-3015 Sheet Router','Shopbot 4x4 CNC Router','Shaper Origin'],
+        mats:['Wood','Plywood','MDF','High-Density Foam','Acrylic','HDPE','Polycarbonate','Composites','Aluminum'] },
+      { id:'manlathe', name:'Lathe',
+        mach:['Jet GBH-1340A (DRO)'],
+        mats:MACH_MATS },
+      { id:'manmill', name:'Manual Mill',
+        mach:['Acer E-Mill EVS-3VS (MILLPWR G2)','Kent KTM-3VKF'],
+        mats:MACH_MATS },
+      { id:'support', name:'Support Equipment',
+        mach:['Drill Press','Belt and Disk Sander','Benchtop Grinder','Cut-off Saw','Bandsaw'],
+        mats:MACH_MATS },
+      { id:'mother', name:'Other', mats:MACH_MATS } ] },
+  { id:'wjet', name:'Waterjet', abbr:'WJT', platforms:[
+      { id:'wazer', name:'Abrasive Waterjet',
+        mach:['Wazer Pro'],
+        mats:['Aluminum','Steel','Stainless Steel','Brass','Copper','Titanium','Glass','Stone','Tile','Acrylic','Delrin','HDPE','Polycarbonate','Composites','Cured Carbon Fiber','Rubber','Foam','Wood'] } ] },
+  { id:'sheet', name:'Sheet Metal', abbr:'SHT', platforms:[
+      { id:'brake', name:'CNC Press Brake',
+        mach:['Langmuir Titan 25T'],
+        mats:['Steel sheet','Stainless sheet','Aluminum sheet','Aluminum plate'] },
+      { id:'brs', name:'Brake / Roll / Shear',
+        mach:['Combination Brake Roll Shear'],
+        mats:['Steel sheet','Stainless sheet','Aluminum sheet'] } ] },
+  { id:'vac', name:'Vacuum Forming', abbr:'VAC', platforms:[
+      { id:'formech', name:'Vacuum Former',
+        mach:['Formech 450 DT'],
+        mats:['HIPS','ABS','PVC','PP','HDPE','Conductive Polystyrene','Acrylic (PMMA)','Polycarbonate (Lexan)','PETG','APET','Kydex'] } ] },
+  { id:'blade', name:'Vinyl / Blade Cutting', abbr:'VNL', platforms:[
+      { id:'cameo', name:'Blade Cutter / Plotter',
+        mach:['Silhouette Cameo 4 Pro'],
+        mats:['Vinyl','Heat Transfer Vinyl (HTV)','Cardstock','Fabric (rotary blade)','Leather','Chipboard','Foam','Paper','Sticker Paper','Felt (rotary blade)','Magnetic Sheet','Acetate'] } ] },
+  { id:'cast', name:'Casting / Molding', abbr:'CST', platforms:[
+      { id:'rescast', name:'Resin Casting',
+        mats:[{n:'Silicone Rubber', v:['Platinum Cure','Tin Cure']},'Polyurethane Resin','Epoxy Resin','Polyester Resin',
+          {n:'Plaster', v:['Plaster of Paris','Hydrocal','Ultracal']},'Urethane Rubber','Acrylic Resin (PMMA)','Alginate',
+          {n:'Two-Part Expanding Foam', v:['Rigid','Flexible']},'Stranded Carbon Fiber + Epoxy'] },
+      { id:'roto', name:'Roto-Casting',
+        mats:['Polyurethane Resin','Urethane Rubber','Epoxy Resin',{n:'Silicone Rubber', v:['Platinum Cure','Tin Cure']}] },
+      { id:'silmold', name:'Silicone Molding',
+        mats:[{n:'Silicone Rubber', v:['Platinum Cure','Tin Cure']},'Alginate'] },
+      { id:'inj', name:'Injection Molding',
+        mach:['Morgan Press GT-100T','LMS PIM-MODEL-150A (manual)'],
+        mats:['ABS','Acetal','Nylon','PLA','Polycarbonate','Polypropylene','Polyethylene','Polysulfone','Polystyrene','Urethane','TPE','TPU','TPV','EVA','PMMA','Vinyl'] },
+      { id:'comp', name:'Compression Molding',
+        mach:['Morgan Press GT-100T'],
+        mats:['ABS','Acetal','Nylon','PLA','Polycarbonate','Polypropylene','TPE','TPU'] } ] },
+  { id:'comp', name:'Composites', abbr:'CMP', platforms:[
+      { id:'layup', name:'Hand Layup', mats:['Carbon Fiber + Epoxy','Fiberglass + Epoxy','Kevlar + Epoxy'] },
+      { id:'vacbag', name:'Vacuum Bagging', mats:['Carbon Fiber + Epoxy','Fiberglass + Epoxy','Kevlar + Epoxy'] },
+      { id:'inf', name:'Resin Infusion', mats:['Carbon Fiber + Epoxy','Fiberglass + Epoxy'] } ] },
+  { id:'scan', name:'3D Scanning', abbr:'SCN', platforms:[
+      { id:'slight', name:'Structured Light' },
+      { id:'slaser', name:'Laser' },
+      { id:'photo',  name:'Photogrammetry' },
+      { id:'sct',    name:'CT' } ] },
+  { id:'dicom', name:'DICOM / Imaging', abbr:'IMG', platforms:[
+      { id:'ct',  name:'CT' },
+      { id:'mri', name:'MRI' },
+      { id:'seg', name:'Segmentation' },
+      { id:'iother', name:'Other' } ] },
+  { id:'bolus', name:'Medical Bolus', abbr:'BOL', platforms:[
+      { id:'bprint', name:'3D Printed', mats:['TPU','Silicone',{n:'Elastico', v:['Clear','Black']},'Agilus30'] },
+      { id:'bcast',  name:'Cast', mats:[{n:'Silicone Rubber', v:['Platinum Cure','Tin Cure']}] } ] },
+  { id:'pcb', name:'PCB Manufacturing', abbr:'PCB', platforms:[
+      { id:'pcbmill', name:'Milling', mats:['FR4 (Copper Clad)','FR1'] },
+      { id:'pcbetch', name:'Etching', mats:['FR4 (Copper Clad)','FR1'] } ] },
+  { id:'other', name:'Other', abbr:'OTH', platforms:[] }
+];
+
+var LOCS = [
+  { id:'',      name:'Location Undefined' },
+  { id:'davis', name:'Davis' },
+  { id:'as',    name:'Aggie Square' }
+];
+function locName(id){ for(var i=0;i<LOCS.length;i++) if(LOCS[i].id===id) return LOCS[i].name; return ''; }
+function locShort(id){ return id==='as' ? 'AS' : (id==='davis' ? 'Davis' : ''); }
+
+var REQS = [
+  { id:'col',  name:'Color / Opacity' },
+  { id:'mech', name:'Mechanics' },
+  { id:'res',  name:'Resolution / Accuracy' },
+  { id:'env',  name:'Environmental (heat, UV…)' },
+  { id:'chem', name:'Chemical Compatibility' },
+  { id:'bio',  name:'Biocompatibility' },
+  { id:'ster', name:'Sterilizable' },
+  { id:'cost', name:'Cost' }
+];
+var OUTS = [
+  { id:'wip',  name:'In progress' },
+  { id:'ok',   name:'Success',  hi:true },
+  { id:'part', name:'Partial' },
+  { id:'fail', name:'Failed',   hi:true }
+];
+function modOf(id){ for(var i=0;i<MODS.length;i++) if(MODS[i].id===id) return MODS[i]; return null; }
+function pfOf(mod,id){ if(!mod) return null; for(var i=0;i<(mod.platforms||[]).length;i++) if(mod.platforms[i].id===id) return mod.platforms[i]; return null; }
+function outOf(id){ for(var i=0;i<OUTS.length;i++) if(OUTS[i].id===id) return OUTS[i]; return OUTS[0]; }
+function reqName(id){ for(var i=0;i<REQS.length;i++) if(REQS[i].id===id) return REQS[i].name; return id; }
+function matName(m){ return (typeof m==='string') ? m : m.n; }
+function matVars(m){ return (typeof m==='object' && Array.isArray(m.v)) ? m.v : []; }
+
+/* ----- state & persistence ------------------------------------------------
+   Trello caps a plugin's card data at 4096 chars total (shared scope).
+   Notes are stored with compact keys; the meter shows usage and saving is
+   refused (never silently truncated) once the cap would be exceeded.       */
+var MAX_BYTES = 3980;
+var state = { notes: [], custom: [] };   // notes newest first; custom = per-card materials {n, m, p}
+
+function packNote(n){
+  var c = { i:n.i, t:n.t, by:n.by, m:n.m, p:n.p, mt:n.mt, vr:n.vr, mc:n.mc, st:n.st,
+            of:n.of||undefined, pr:n.pr||undefined, cp:n.cp?1:undefined, cpn:n.cpn||undefined,
+            rq:(n.rq&&n.rq.length)?n.rq:undefined, rx:n.rx||undefined,
+            dv:n.dv?1:undefined, dx:n.dx||undefined, o:n.o,
+            lc:n.lc||undefined, cm:n.cm?1:undefined, nt:n.nt||undefined };
+  Object.keys(c).forEach(function(k){ if(c[k]===undefined || c[k]==='') delete c[k]; });
+  return c;
+}
+function serializeState(){
+  var d = { v:1, n:state.notes.map(packNote) };
+  if(state.custom.length) d.cmats = state.custom.map(function(c){ return { n:c.n, m:c.m, p:c.p||undefined }; });
+  return d;
+}
+function payloadBytes(candidate){
+  try{ return JSON.stringify({ mfg:(candidate||serializeState()) }).length; }catch(e){ return 0; }
+}
+function hydrateState(d){
+  if(!d || typeof d!=='object' || !Array.isArray(d.n)) return false;
+  state.custom = Array.isArray(d.cmats) ? d.cmats.map(function(c){
+    return { n:c.n||'', m:c.m||'other', p:c.p||'' };
+  }).filter(function(c){ return c.n; }) : [];
+  state.notes = d.n.map(function(e){
+    return { i:e.i||String(Math.random()).slice(2,8), t:e.t||0, by:e.by||'', m:e.m||'other', p:e.p||'',
+             mt:e.mt||'', vr:e.vr||'', mc:e.mc||'', st:e.st||'',
+             of:e.of||'', pr:e.pr||'', cp:!!e.cp, cpn:e.cpn||'',
+             rq:Array.isArray(e.rq)?e.rq:[], rx:e.rx||'',
+             dv:!!e.dv, dx:e.dx||'', o:e.o||'wip', lc:e.lc||'', cm:!!e.cm, nt:e.nt||'' };
+  });
+  return true;
+}
+function savePayload(){ return { mfg: serializeState() }; }
+
+var SAVE_DELAY = 800, _edBC = null, _connBC = null, _lastCardT = null;
+function saveChip(txt, cls){
+  var c = document.getElementById('saveChip'); if(!c) return;
+  if(!txt){ c.hidden = true; return; }
+  c.hidden = false; c.textContent = txt; c.className = 'savechip' + (cls ? ' ' + cls : '');
+}
+function saveNow(){
+  clearTimeout(_saveTimer); _saveTimer = null;
+  if(_sim){ try{ localStorage.setItem('tf-manufacturing-local', JSON.stringify(serializeState())); saveChip('Saved \u2713','ok'); setTimeout(function(){ saveChip(''); },2000); }catch(e){} return; }
+  if(!_t) return;
+  try{
+    var p = _t.set('card','shared', savePayload());
+    saveChip('Saving\u2026');
+    if(p && p.then){
+      p.then(function(){ saveChip('Saved \u2713','ok'); setTimeout(function(){ saveChip(''); }, 2500); },
+             function(){ saveChip('Save failed','err'); });
+    } else { saveChip('Saved \u2713','ok'); setTimeout(function(){ saveChip(''); }, 2500); }
+  }catch(e){ saveChip('Save failed','err'); }
+}
+function saveCard(){
+  if(!_ready) return;
+  clearTimeout(_saveTimer);
+  saveChip('Saving\u2026');
+  _saveTimer = setTimeout(saveNow, SAVE_DELAY);
+}
+/* Close-proof saving: on any sign the modal is going away, fire the direct
+   save AND relay a copy to the connector over BroadcastChannel — the
+   connector outlives this iframe and performs the same t.set from safety.
+   Duplicate writes are idempotent. */
+function relayFlush(){
+  try{
+    if(!_edBC) _edBC = new BroadcastChannel('tf-mfg');
+    _edBC.postMessage({ type:'save', data: savePayload() });
+  }catch(e){}
+}
+['pagehide','beforeunload'].forEach(function(ev){
+  window.addEventListener(ev, function(){ if(_saveTimer){ relayFlush(); saveNow(); } });
+});
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden' && _saveTimer){ relayFlush(); saveNow(); }
+});
+function loadCard(cb){
+  if(_sim){
+    try{ var raw = localStorage.getItem('tf-manufacturing-local'); if(raw) hydrateState(JSON.parse(raw)); }catch(e){}
+    cb && cb(true); return;
+  }
+  if(!_t){ cb && cb(false); return; }
+  var done=false, finish=function(ok){ if(done) return; done=true; cb && cb(ok); };
+  try{
+    var pd = _t.get('card','shared','mfg');
+    if(pd && pd.then){
+      pd.then(function(d){ finish(hydrateState(d)); }, function(){ finish(false); });
+    } else finish(false);
+  }catch(e){ finish(false); }
+}
+
+/* ----- editor UI ---------------------------------------------------------- */
+var $ = function(id){ return document.getElementById(id); };
+var form = { open:false, editId:null, m:null, p:null, rq:[], o:'wip', lc:'', dv:false };
+
+function fmtDate(t){
+  if(!t) return '';
+  var d = new Date(t);
+  return (d.getMonth()+1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2);
+}
+function noteTitle(n){
+  var mod = modOf(n.m), pf = pfOf(mod, n.p);
+  var bits = [];
+  if(pf) bits.push(pf.name); else if(n.p) bits.push(n.p);
+  if(n.mt) bits.push(n.mt + (n.vr ? ' \u00b7 ' + n.vr : ''));
+  else if(n.vr) bits.push(n.vr);
+  return bits.join(' \u00b7 ');
+}
+function noteMeta(n){
+  var bits = [];
+  var l = locShort(n.lc); if(l) bits.push(l);
+  if(n.by) bits.push(n.by);
+  if(n.t) bits.push(fmtDate(n.t));
+  return bits.join(' \u00b7 ');
+}
+function updateCap(){
+  var b = payloadBytes(), pct = Math.round(b / MAX_BYTES * 100);
+  $('capPct').textContent = Math.min(999,pct) + '%';
+  var f = $('capFill');
+  f.style.width = Math.min(100,pct) + '%';
+  f.className = 'capfill' + (pct>100?' over':(pct>85?' warn':''));
+}
+
+function renderList(){
+  var el = $('list');
+  if(!state.notes.length){
+    el.innerHTML = '<div class="empty">No manufacturing notes yet. Add one to document how this job was made.</div>';
+    updateCap(); return;
+  }
+  var h = '';
+  state.notes.forEach(function(n){
+    var mod = modOf(n.m) || modOf('other');
+    var out = outOf(n.o);
+    h += '<div class="note" data-id="' + esc(n.i) + '">';
+    h += '<div class="nhead">';
+    h += '<span class="modchip">' + esc(mod.abbr) + '</span>';
+    h += '<span class="ntitle">' + esc(noteTitle(n) || mod.name) + (n.mc ? ' <i>\u2014 ' + esc(n.mc) + '</i>' : '') + '</span>';
+    h += '<span class="outchip' + (out.hi ? ' hi' : '') + '">' + esc(out.name) + '</span>';
+    if(n.dv) h += '<span class="devflag">\u26a0\ufe0e SOP deviation</span>';
+    if(n.cm) h += '<span class="cmflag" title="Additional context provided in comments"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>';
+    h += '<span class="nmeta num">' + esc(noteMeta(n)) + '</span>';
+    h += '<span class="nact"><button class="icbtn edit" title="Edit">\u270e</button><button class="icbtn del" title="Delete">\u2715</button></span>';
+    h += '</div>';
+    var body = '';
+    if(n.st) body += '<div class="nrow"><span class="k">Settings</span><span class="v">' + esc(n.st) + '</span></div>';
+    if(n.of) body += '<div class="nrow"><span class="k">Offset</span><span class="v">' + esc(n.of) + '</span></div>';
+    if(n.pr || n.cp){
+      var pv = esc(n.pr || '');
+      if(n.cp) pv += (pv ? ' \u2014 ' : '') + 'custom profile saved' + (n.cpn ? ' as \u201c' + esc(n.cpn) + '\u201d' : '');
+      body += '<div class="nrow"><span class="k">Profile</span><span class="v">' + pv + '</span></div>';
+    }
+    if(n.rq && n.rq.length){
+      body += '<div class="nrow"><span class="k">Client reqs</span><span class="v"><span class="reqchips">' +
+        n.rq.map(function(r){ return '<span class="reqchip">' + esc(reqName(r)) + '</span>'; }).join('') +
+        '</span>' + (n.rx ? '<div style="margin-top:3px">' + esc(n.rx) + '</div>' : '') + '</span></div>';
+    }
+    if(n.dv && n.dx) body += '<div class="nrow dev"><span class="k">Deviation</span><span class="v">' + esc(n.dx) + '</span></div>';
+    if(n.nt) body += '<div class="nrow"><span class="k">Notes</span><span class="v">' + esc(n.nt) + '</span></div>';
+    if(n.cm) body += '<div class="nrow cmts"><span class="k">Comments</span><span class="v">Additional context provided in card comments</span></div>';
+    if(body) h += '<div class="nbody">' + body + '</div>';
+    h += '</div>';
+  });
+  el.innerHTML = h;
+  el.querySelectorAll('.note').forEach(function(nd){
+    var id = nd.getAttribute('data-id');
+    nd.querySelector('.edit').addEventListener('click', function(){ openForm(id); });
+    nd.querySelector('.del').addEventListener('click', function(){
+      var i = state.notes.findIndex(function(x){ return x.i===id; });
+      if(i<0) return;
+      var n = state.notes[i];
+      if(!confirm('Delete this note? (' + (noteTitle(n)||modOf(n.m).name) + ')')) return;
+      state.notes.splice(i,1);
+      renderList(); saveCard();
+    });
+  });
+  updateCap();
+}
+
+/* --- form ----------------------------------------------------------------- */
+function chipRow(container, items, selectedId, onPick, cls){
+  container.innerHTML = '';
+  items.forEach(function(it){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chipbtn' + (cls?' '+cls:'');
+    b.textContent = it.name;
+    b.setAttribute('aria-pressed', String(selectedId===it.id));
+    b.addEventListener('click', function(){ onPick(it.id); });
+    container.appendChild(b);
+  });
+}
+function renderModChips(){
+  chipRow($('modChips'), MODS, form.m, function(id){
+    form.m = id; form.p = null;
+    renderModChips(); renderPfChips(); refreshMats(); refreshVars(); refreshMachs(); updateFieldVis();
+  });
+}
+function renderPfChips(){
+  var mod = modOf(form.m);
+  var grp = $('pfGrp');
+  if(!mod || !(mod.platforms||[]).length){ grp.hidden = true; return; }
+  grp.hidden = false;
+  chipRow($('pfChips'), mod.platforms, form.p, function(id){
+    form.p = id;
+    renderPfChips(); refreshMats(); refreshVars(); refreshMachs();
+  });
+}
+function currentMats(){
+  var mod = modOf(form.m), pf = pfOf(mod, form.p);
+  var mats = (pf && pf.mats) ? pf.mats.slice() : [];
+  if(!mats.length && mod){
+    (mod.platforms||[]).forEach(function(p){
+      (p.mats||[]).forEach(function(m){
+        if(!mats.some(function(x){ return matName(x)===matName(m); })) mats.push(m);
+      });
+    });
+  }
+  /* card-defined materials: match modality, and platform when one is set */
+  state.custom.forEach(function(c){
+    if(c.m !== form.m) return;
+    if(c.p && form.p && c.p !== form.p) return;
+    if(!mats.some(function(x){ return matName(x)===c.n; })) mats.push(c.n);
+  });
+  return mats;
+}
+function refreshMats(){
+  var dl = $('matList'); dl.innerHTML = '';
+  currentMats().forEach(function(m){ var o = document.createElement('option'); o.value = matName(m); dl.appendChild(o); });
+}
+function refreshVars(){
+  var dl = $('varList'); dl.innerHTML = '';
+  var typed = $('fMat').value.trim().toLowerCase();
+  var vars = [];
+  currentMats().forEach(function(m){
+    if(matName(m).toLowerCase() === typed) vars = matVars(m);
+  });
+  vars.forEach(function(v){ var o = document.createElement('option'); o.value = v; dl.appendChild(o); });
+}
+function refreshMachs(){
+  var dl = $('machList'); dl.innerHTML = '';
+  var mod = modOf(form.m), pf = pfOf(mod, form.p);
+  var machs = (pf && pf.mach) ? pf.mach.slice() : [];
+  if(!machs.length && mod){
+    (mod.platforms||[]).forEach(function(p){
+      (p.mach||[]).forEach(function(m){ if(machs.indexOf(m)<0) machs.push(m); });
+    });
+  }
+  machs.forEach(function(m){ var o = document.createElement('option'); o.value = m; dl.appendChild(o); });
+}
+function renderReqChips(){
+  var c = $('reqChips'); c.innerHTML = '';
+  REQS.forEach(function(r){
+    var b = document.createElement('button');
+    b.type='button'; b.className='chipbtn req';
+    b.textContent = r.name;
+    b.setAttribute('aria-pressed', String(form.rq.indexOf(r.id)>=0));
+    b.addEventListener('click', function(){
+      var i = form.rq.indexOf(r.id);
+      if(i>=0) form.rq.splice(i,1); else form.rq.push(r.id);
+      renderReqChips();
+      $('fReqx').hidden = !form.rq.length;
+    });
+    c.appendChild(b);
+  });
+  $('fReqx').hidden = !form.rq.length;
+}
+function renderOutSeg(){
+  var c = $('oSeg'); c.innerHTML = '';
+  OUTS.forEach(function(o){
+    var b = document.createElement('button');
+    b.type='button';
+    b.textContent = o.name;
+    b.setAttribute('aria-pressed', String(form.o===o.id));
+    b.addEventListener('click', function(){ form.o = o.id; renderOutSeg(); });
+    c.appendChild(b);
+  });
+}
+function renderLocSeg(){
+  var c = $('locSeg'); c.innerHTML = '';
+  LOCS.forEach(function(l){
+    var b = document.createElement('button');
+    b.type='button';
+    b.textContent = l.name;
+    b.setAttribute('aria-pressed', String(form.lc===l.id));
+    b.addEventListener('click', function(){ form.lc = l.id; renderLocSeg(); });
+    c.appendChild(b);
+  });
+}
+function setDev(on){
+  form.dv = on;
+  $('fDev').checked = on;
+  $('devTog').classList.toggle('on', on);
+  $('devBox').classList.toggle('hidden', !on);
+}
+/* Per-modality field relevance. Offset / cut profile only make sense for
+   2D cutting (laser, waterjet, vinyl/blade); material and variant don't
+   apply to scanning or imaging work. */
+var CUT_MODS = ['laser','wjet','blade'];
+var NOMAT_MODS = ['scan','dicom'];
+var OFFSET_COLORS = ['Red','Black','Blue','Green','Yellow','Pink'];
+var OFFSET_FITS = ['strong interference','interference','light interference','clearance','generous clearance'];
+function updateFieldVis(){
+  var isCut = CUT_MODS.indexOf(form.m) >= 0;
+  $('cutGrp').classList.toggle('hidden', !isCut);
+  var noMat = NOMAT_MODS.indexOf(form.m) >= 0;
+  $('matGrp').hidden = noMat;
+  $('varGrp').hidden = noMat;
+  if(isCut && !$('offFitList').children.length){
+    var dl = $('offFitList');
+    OFFSET_COLORS.forEach(function(c){
+      OFFSET_FITS.forEach(function(f){
+        var o = document.createElement('option');
+        o.value = c.toLowerCase() + ': ' + f;
+        dl.appendChild(o);
+      });
+    });
+  }
+}
+function setCp(on){
+  $('fCp').checked = on;
+  $('cpnGrp').hidden = !on;
+}
+function openForm(editId){
+  closeSettings();
+  form.open = true; form.editId = editId || null;
+  var n = editId ? state.notes.find(function(x){ return x.i===editId; }) : null;
+  form.m = n ? n.m : null;
+  form.p = n ? n.p : null;
+  form.rq = n ? (n.rq||[]).slice() : [];
+  form.o = n ? n.o : 'wip';
+  form.lc = n ? (n.lc||'') : '';
+  $('fTtl').textContent = n ? 'Edit manufacturing note' : 'New manufacturing note';
+  $('fMat').value = n ? n.mt : '';
+  $('fVar').value = n ? n.vr : '';
+  $('fMach').value = n ? n.mc : '';
+  $('fSet').value = n ? n.st : '';
+  $('fOff').value = n ? (n.of||'') : '';
+  $('fProf').value = n ? (n.pr||'') : '';
+  $('fCpn').value = n ? (n.cpn||'') : '';
+  setCp(n ? !!n.cp : false);
+  $('fReqx').value = n ? n.rx : '';
+  $('fDevx').value = n ? n.dx : '';
+  $('fNote').value = n ? n.nt : '';
+  $('fCm').checked = n ? !!n.cm : false;
+  setDev(n ? !!n.dv : false);
+  renderModChips(); renderPfChips(); refreshMats(); refreshVars(); refreshMachs();
+  renderReqChips(); renderOutSeg(); renderLocSeg(); updateFieldVis();
+  $('fWarn').hidden = true;
+  $('form').classList.remove('hidden');
+  $('addBtn').disabled = true;
+  try{ $('form').scrollIntoView({behavior:'smooth', block:'nearest'}); }catch(e){}
+}
+function closeForm(){
+  form.open = false; form.editId = null;
+  $('form').classList.add('hidden');
+  $('addBtn').disabled = false;
+}
+function collectForm(){
+  var prev = form.editId ? (state.notes.find(function(x){return x.i===form.editId;})||{}) : {};
+  return {
+    i: form.editId || (Date.now().toString(36) + Math.random().toString(36).slice(2,5)),
+    t: form.editId ? (prev.t || Date.now()) : Date.now(),
+    by: form.editId ? (prev.by || (_memberTag||'')) : (_memberTag||''),
+    m: form.m || 'other', p: form.p || '',
+    mt: NOMAT_MODS.indexOf(form.m)>=0 ? '' : $('fMat').value.trim(),
+    vr: NOMAT_MODS.indexOf(form.m)>=0 ? '' : $('fVar').value.trim(), mc: $('fMach').value.trim(), st: $('fSet').value.trim(),
+    of: CUT_MODS.indexOf(form.m)>=0 ? $('fOff').value.trim() : '',
+    pr: CUT_MODS.indexOf(form.m)>=0 ? $('fProf').value.trim() : '',
+    cp: CUT_MODS.indexOf(form.m)>=0 ? $('fCp').checked : false,
+    cpn: (CUT_MODS.indexOf(form.m)>=0 && $('fCp').checked) ? $('fCpn').value.trim() : '',
+    rq: form.rq.slice(), rx: form.rq.length ? $('fReqx').value.trim() : '',
+    dv: form.dv, dx: form.dv ? $('fDevx').value.trim() : '',
+    o: form.o, lc: form.lc, cm: $('fCm').checked, nt: $('fNote').value.trim()
+  };
+}
+function submitForm(){
+  var w = $('fWarn');
+  if(!form.m){ w.textContent = 'Pick a modality first.'; w.hidden = false; return; }
+  var n = collectForm();
+  /* project the size before committing — never silently truncate docs */
+  var next = state.notes.slice();
+  var idx = next.findIndex(function(x){ return x.i===n.i; });
+  if(idx>=0) next[idx] = n; else next.unshift(n);
+  var bytes = payloadBytes({ v:1, n: next.map(packNote) });
+  if(bytes > MAX_BYTES){
+    w.textContent = 'Card storage full (' + bytes + ' / ' + MAX_BYTES + ' chars). Shorten this note or delete an old one.';
+    w.hidden = false; return;
+  }
+  state.notes = next;
+  closeForm(); renderList(); saveCard();
+}
+/* --- card settings: user-defined materials ------------------------------- */
+function custWhere(c){
+  var mod = modOf(c.m), pf = pfOf(mod, c.p);
+  return (mod ? mod.name : c.m) + (pf ? ' \u00b7 ' + pf.name : ' \u00b7 all platforms');
+}
+function renderCustList(){
+  var el = $('custList');
+  if(!state.custom.length){
+    el.innerHTML = '<div class="custempty">None yet \u2014 materials added here appear in the Material picker for their modality/platform.</div>';
+    return;
+  }
+  var h = '';
+  state.custom.forEach(function(c, i){
+    h += '<div class="custrow" data-i="' + i + '"><span class="cn">' + esc(c.n) + '</span>' +
+         '<span class="cw">' + esc(custWhere(c)) + '</span>' +
+         '<button class="icbtn del" title="Remove">\u2715</button></div>';
+  });
+  el.innerHTML = h;
+  el.querySelectorAll('.custrow .del').forEach(function(b){
+    b.addEventListener('click', function(){
+      var i = parseInt(b.parentNode.getAttribute('data-i'), 10);
+      state.custom.splice(i, 1);
+      renderCustList(); updateCap(); saveCard();
+    });
+  });
+}
+function renderCModSel(){
+  var sel = $('cMod'); sel.innerHTML = '';
+  MODS.forEach(function(m){
+    var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o);
+  });
+  renderCPfSel();
+}
+function renderCPfSel(){
+  var sel = $('cPf'); sel.innerHTML = '';
+  var mod = modOf($('cMod').value);
+  var all = document.createElement('option'); all.value = ''; all.textContent = 'All platforms'; sel.appendChild(all);
+  ((mod && mod.platforms) || []).forEach(function(p){
+    var o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o);
+  });
+}
+function addCustom(){
+  var w = $('sWarn');
+  var name = $('cMatName').value.trim();
+  if(!name){ w.textContent = 'Enter a material name.'; w.hidden = false; return; }
+  var m = $('cMod').value, pf = $('cPf').value;
+  if(state.custom.some(function(c){ return c.n===name && c.m===m && c.p===pf; })){
+    w.textContent = 'Already on the list.'; w.hidden = false; return;
+  }
+  var next = state.custom.concat([{ n:name, m:m, p:pf }]);
+  var bytes = payloadBytes({ v:1, n:state.notes.map(packNote), cmats:next });
+  if(bytes > MAX_BYTES){
+    w.textContent = 'Card storage full (' + bytes + ' / ' + MAX_BYTES + ' chars).'; w.hidden = false; return;
+  }
+  state.custom = next;
+  $('cMatName').value = ''; w.hidden = true;
+  renderCustList(); updateCap(); saveCard();
+}
+function openSettings(){
+  closeForm();
+  renderCModSel(); renderCustList();
+  $('sWarn').hidden = true;
+  $('settings').classList.remove('hidden');
+}
+function closeSettings(){
+  $('settings').classList.add('hidden');
+}
+function initFullApp(){
+  _ready = true;
+  $('addBtn').addEventListener('click', function(){ openForm(null); });
+  $('fCancel').addEventListener('click', closeForm);
+  $('fSave').addEventListener('click', submitForm);
+  $('fDev').addEventListener('change', function(){ setDev(this.checked); });
+  $('fCp').addEventListener('change', function(){ setCp(this.checked); });
+  $('gearBtn').addEventListener('click', function(){
+    if($('settings').classList.contains('hidden')) openSettings(); else closeSettings();
+  });
+  $('sClose').addEventListener('click', closeSettings);
+  $('cAdd').addEventListener('click', addCustom);
+  $('cMod').addEventListener('change', renderCPfSel);
+  $('fMat').addEventListener('input', refreshVars);
+  $('fMat').addEventListener('change', refreshVars);
+  renderList();
+}
+
+/* ----- compact read-only summary shown on the card face ------------------ */
+var FC_MAX = 6;
+function renderSummary(){
+  var body = document.getElementById('svBody'); if(!body) return;
+  if(!state.notes.length){
+    body.innerHTML = '<div class="fc-empty">No manufacturing notes</div>'; return;
+  }
+  var h = '';
+  state.notes.slice(0, FC_MAX).forEach(function(n){
+    var mod = modOf(n.m) || modOf('other');
+    var out = outOf(n.o);
+    h += '<div class="fc-note"><div class="fc-l1">';
+    h += '<span class="fc-mod">' + esc(mod.abbr) + '</span>';
+    h += '<span class="fc-ttl">' + esc(noteTitle(n) || mod.name) + (n.mc ? ' <i>\u2014 ' + esc(n.mc) + '</i>' : '') + '</span>';
+    h += '<span class="fc-out' + (out.hi ? ' hi' : '') + '">' + esc(out.name) + '</span>';
+    if(n.dv) h += '<span class="fc-dev" title="SOP deviation">\u26a0\ufe0e</span>';
+    if(n.cm) h += '<span class="fc-cm" title="Additional context in comments"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>';
+    h += '<span class="fc-by">' + esc(noteMeta(n)) + '</span>';
+    h += '</div>';
+    var snip = n.nt || n.st || n.dx || '';
+    if(snip) h += '<div class="fc-snip">' + esc(snip.length>110 ? snip.slice(0,110)+'\u2026' : snip) + '</div>';
+    h += '</div>';
+  });
+  if(state.notes.length > FC_MAX)
+    h += '<div class="fc-more">+ ' + (state.notes.length - FC_MAX) + ' more \u2014 open to view</div>';
+  body.innerHTML = h;
+}
+function estimateFaceHeight(d){
+  var n = 0, snips = 0;
+  try{
+    if(d && Array.isArray(d.n)){
+      n = Math.min(d.n.length, FC_MAX);
+      d.n.slice(0, FC_MAX).forEach(function(e){ if(e.nt || e.st || e.dx) snips++; });
+    }
+  }catch(e){}
+  if(!n) return 64;
+  var h = 46 + n*27 + snips*17;
+  if(d.n.length > FC_MAX) h += 22;
+  return Math.min(560, h);
+}
+
+/* ----- Trello wiring ------------------------------------------------------ */
+function initConnector(){
+  try{
+    _connBC = new BroadcastChannel('tf-mfg');
+    _connBC.onmessage = function(m){
+      var msg = m && m.data;
+      if(!msg || msg.type !== 'save' || !_lastCardT) return;
+      try{
+        _lastCardT.set('card','shared', msg.data).then(
+          function(){ try{ _connBC.postMessage({type:'saved'}); }catch(e){} },
+          function(){ try{ _connBC.postMessage({type:'saveerr'}); }catch(e){} }
+        );
+      }catch(e){ try{ _connBC.postMessage({type:'saveerr'}); }catch(_){}}
+    };
+  }catch(e){}
+  window.TrelloPowerUp.initialize({
+    'card-back-section': function(t, opts){
+      _lastCardT = t;
+      var buildSection = function(dataStr){
+        var d = null; try{ d = dataStr ? JSON.parse(dataStr) : null; }catch(e){}
+        var url = SELF + '?view=summary&cb=' + Date.now() + '&d=' + encodeURIComponent(dataStr);
+        try{ if(t.signUrl) url = t.signUrl(url); }catch(e){}   // signed URLs authenticate the iframe's Trello channel
+        return {
+          title: 'Manufacturing Notes',
+          icon: TRELLO_ICON,
+          content: { type:'iframe', url: url, height: estimateFaceHeight(d) },
+          action: { text: 'Open', callback: function(tt){
+            return tt.modal({ url: SELF + '?view=editor&cb=' + Date.now(), fullscreen: false, height: 1100, title: '', accentColor: '#242528' });
+          } }
+        };
+      };
+      var read = t.get('card','shared','mfg')
+        .then(function(d){ return d ? JSON.stringify(d) : ''; })
+        .catch(function(){ return ''; });
+      var timeout = new Promise(function(res){ setTimeout(function(){ res(''); }, 1500); });
+      return Promise.race([read, timeout]).then(buildSection);
+    }
+  });
+}
+
+function detectTheme(t){
+  try{ var c=t.getContext&&t.getContext(); if(c&&(c.theme==='dark'||c.theme==='light')) return {theme:c.theme,src:'ctx'}; }catch(e){}
+  var a=document.documentElement.getAttribute('data-color-mode'); if(a==='dark'||a==='light') return {theme:a,src:'attr'};
+  return {theme:'dark',src:'default'};
+}
+function applyTheme(t){
+  var d = detectTheme(t);
+  document.documentElement.setAttribute('data-color-mode', d.theme);
+  return d;
+}
+
+function initSummary(){
+  var t = window.TrelloPowerUp.iframe();
+  _t = window._t = t;
+  applyTheme(t);
+  [150,500,1200,2500].forEach(function(ms){ setTimeout(function(){ applyTheme(t); }, ms); });
+  var vb = document.getElementById('svVer'); if(vb) vb.textContent = 'v' + VERSION;
+  var settled = false;
+  var finish = function(){
+    if(settled) return; settled = true;
+    applyTheme(t); renderSummary();
+    try{ if(t.sizeTo) t.sizeTo('#summaryView'); }catch(_){}
+  };
+  var tryGet = function(){
+    if(settled) return;
+    try{
+      var p = t.get('card','shared','mfg');
+      if(p && p.then){
+        p.then(function(d){ hydrateState(d); finish(); }, function(){ finish(); });
+      } else { finish(); }
+    }catch(er){}
+  };
+  /* Primary path: data delivered by the connector in the URL — no round-trip. */
+  var dParam = getParam('d');
+  if(dParam !== null){
+    if(dParam === ''){ finish(); }
+    else {
+      try{ hydrateState(JSON.parse(dParam)); finish(); }
+      catch(er){ /* malformed — fall through to Trello paths */ }
+    }
+  }
+  [400,1000,2000].forEach(function(ms){ setTimeout(function(){ try{ if(t.sizeTo) t.sizeTo('#summaryView'); }catch(_){} }, ms); });
+  try{ t.render(function(){ applyTheme(t); tryGet(); }); }catch(err){}
+  setTimeout(function(){ tryGet(); }, 600);
+  setTimeout(function(){ finish(); }, 3500);
+}
+
+var _memberTag = null;
+function memberTagFrom(m){
+  var n = ((m && (m.fullName || m.username)) || '').trim();
+  if(!n) return null;
+  var parts = n.split(/\s+/);
+  if(parts.length === 1) return parts[0];
+  return parts[0] + ' ' + parts[parts.length-1].charAt(0).toUpperCase() + '.';
+}
+function initEditor(){
+  try{ _t = window._t = window.TrelloPowerUp.iframe(); }catch(e){ _t=null; }
+  applyTheme(_t);
+  [150,500,1500].forEach(function(ms){ setTimeout(function(){ applyTheme(_t); }, ms); });
+  try{
+    var pm = _t && _t.member ? _t.member('fullName','username') : null;
+    if(pm && pm.then) pm.then(function(m){ _memberTag = memberTagFrom(m); }, function(){});
+  }catch(e){}
+  setTimeout(function(){ try{ document.body.setAttribute('tabindex','-1'); document.body.focus({preventScroll:true}); }catch(e){} }, 120);
+  loadCard(function(){ initFullApp(); });
+}
+
+function boot(){
+  var view = getParam('view');
+  var framed = (window.self !== window.top);
+  var hasTrello = (typeof window.TrelloPowerUp !== 'undefined');
+  var vb = document.getElementById('verBadge'); if(vb) vb.textContent = 'v' + VERSION;
+  if(hasTrello && framed && view==='summary'){ document.body.classList.add('tp-summary'); initSummary(); }
+  else if(hasTrello && framed && view==='editor'){ initEditor(); }
+  else if(hasTrello && framed && !view){ document.body.classList.add('tp-connector'); initConnector(); }
+  else { _sim = true; loadCard(function(){ initFullApp(); }); }
+}
+boot();
+</script>
+</body>
+</html>
