@@ -134,6 +134,12 @@
   .oseg button{appearance:none; border:0; background:transparent; color:var(--dim); cursor:pointer;
     font-size:12px; font-weight:600; padding:4px 11px; border-radius:5px; display:inline-flex; align-items:center; gap:5px; white-space:nowrap}
   .oseg button[aria-pressed="true"]{background:var(--subtle-h); color:var(--head)}
+  .pullrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .pullbtn{appearance:none; cursor:pointer; font-weight:600; font-size:11.5px; white-space:nowrap;
+    color:var(--dim); background:transparent; border:1px solid var(--line); border-radius:999px; padding:3px 11px}
+  .pullbtn:hover{color:var(--head); background:var(--subtle)}
+  .pullmsg{font-size:11.5px; color:var(--dim)}
+  .pullmsg.err{color:var(--head); font-weight:600}
   .facts{display:flex; gap:8px; justify-content:flex-end; align-items:center}
   .fwarn{font-size:11px; font-weight:700; color:var(--head); margin-right:auto}
   .fwarn[hidden]{display:none}
@@ -201,6 +207,19 @@
 
   <div class="form hidden" id="form">
     <span class="fttl" id="fTtl">New manufacturing note</span>
+
+    <div class="pullrow">
+      <button type="button" class="pullbtn" id="pullBtn">&#8595;&#xFE0E; Pull from card description</button>
+      <span class="pullmsg" id="pullMsg"></span>
+    </div>
+    <div class="fgrp hidden" id="pasteGrp">
+      <label>Paste card description</label>
+      <textarea class="fin" id="descPaste"></textarea>
+      <div style="display:flex; gap:8px; justify-content:flex-end">
+        <button type="button" class="fbtn cancel" id="pasteCancel">Cancel</button>
+        <button type="button" class="fbtn save" id="pasteParse">Parse</button>
+      </div>
+    </div>
 
     <div class="fgrp">
       <label>Modality</label>
@@ -337,7 +356,7 @@
    - standalone : file opened directly in a browser -> full tool (browser-local persistence)
 ============================================================================ */
 var SELF = location.origin + location.pathname;
-var VERSION = '1.8';
+var VERSION = '1.9';
 var _t = null, _ready = false, _saveTimer = null, _sim = false;
 var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
@@ -856,6 +875,7 @@ function openForm(editId){
   renderModChips(); renderPfChips(); refreshMats(); refreshVars(); refreshMachs();
   renderReqChips(); renderOutSeg(); renderLocSeg(); updateFieldVis();
   $('fWarn').hidden = true;
+  pullMsg(''); $('pasteGrp').classList.add('hidden'); $('descPaste').value = '';
   $('form').classList.remove('hidden');
   $('addBtn').disabled = true;
   try{ $('form').scrollIntoView({behavior:'smooth', block:'nearest'}); }catch(e){}
@@ -898,6 +918,137 @@ function submitForm(){
   }
   state.notes = next;
   closeForm(); renderList(); saveCard();
+}
+/* --- pull manufacturing details from the card description ----------------
+   Client intake compiles a structured block into the card description.
+   Values are sliced between known field labels after flattening the
+   markdown to plain run-on text. Not every card has the block.          */
+var DESC_LABELS = [
+  'Collection/Delivery Preference:','Social Media Status:','Social Media approval:',
+  'Client Details:','Expanded Client Details:','Client Phone:','Client Email:','Secondary Contacts:',
+  'Physician Email (bolus only):','Physician Email:','Department:','PI:','Project Billing:','Aggie Enterprise:',
+  'Action and Budget:','Authorization','Max Budget:','Target Completion Date','Date of Request',
+  'General Service Details:','ID ','Client Description:','Services:','Materials Furnished By:',
+  '3D Printing Expanded Details:','Selection Strategy:','Method:','Desired Printing Technology:',
+  'Client Defined Material','FDM Material:','Reinforced FDM Materials:','Polyjet Materials:',
+  'Stereolithograpy Materials:','Stereolithography Materials:','Microfluidics Printer Materials:',
+  'Desired Consultation:','Characteristics','All Important Features:','Color/Opacity:','Mechanical:',
+  'Resolution:','Resistance:','Biocompatibility:','Cost:','Other Considerations:',
+  'Unassisted Use Details:','Reporting Unassisted Use:','Clinical Details',
+  'Use Case of Uploaded Structures','Purchasing Snippet:','Supplies for internal recharge','Recharge information:'
+];
+function flattenDesc(txt){
+  return String(txt||'')
+    .replace(/\[([^\]]*)\]\([^\)]*\)/g, '$1')   /* markdown links -> text */
+    .replace(/[*_#>`]/g, '')                      /* markdown tokens */
+    .replace(/\s+/g, ' ');
+}
+function descGrab(flat, label){
+  var low = flat.toLowerCase(), i = low.indexOf(label.toLowerCase());
+  if(i < 0) return null;
+  var start = i + label.length, end = flat.length;
+  for(var k=0; k<DESC_LABELS.length; k++){
+    var j = low.indexOf(DESC_LABELS[k].toLowerCase(), start);
+    if(j >= 0 && j < end) end = j;
+  }
+  var v = flat.slice(start, end);
+  v = v.replace(/^[\s:\-\u2013,]+/,'').replace(/[\s\-\u2013,]+$/,'').trim();
+  return v || null;
+}
+var SERVICE_TO_MOD = [
+  ['3d printing','print'], ['laser','laser'], ['machining','mach'], ['waterjet','wjet'],
+  ['sheet metal','sheet'], ['vacuum forming','vac'], ['vinyl','blade'],
+  ['casting','cast'], ['roto-casting','cast'], ['injection molding','cast'],
+  ['composites','comp'], ['3d scanning','scan'], ['imaging data reconstruction','dicom'],
+  ['dicom','dicom'], ['medical bolus','bolus'], ['pcb','pcb'],
+  ['general development','other'], ['cad','other']
+];
+var TECH_TO_PF = [
+  ['carbon fiber','cffdm'], ['reinforced fdm','cffdm'],
+  ['multijet','mjf'], ['mjf','mjf'],
+  ['stereolithography','sla'], ['sla','sla'],
+  ['polyjet','polyjet'],
+  ['microfluidic','micro'],
+  ['fdm','fdm'], ['fff','fdm']
+];
+var PF_TO_MATFIELD = {
+  fdm:'FDM Material:', cffdm:'Reinforced FDM Materials:', polyjet:'Polyjet Materials:',
+  sla:'Stereolithograpy Materials:', micro:'Microfluidics Printer Materials:'
+};
+function parseDesc(txt){
+  var flat = flattenDesc(txt);
+  if(!flat.trim()) return null;
+  var out = { found:false };
+  var services = descGrab(flat, 'Services:');
+  if(services){
+    var sl = services.toLowerCase();
+    for(var i=0; i<SERVICE_TO_MOD.length; i++){
+      if(sl.indexOf(SERVICE_TO_MOD[i][0]) >= 0){ out.m = SERVICE_TO_MOD[i][1]; out.found = true; break; }
+    }
+  }
+  var tech = descGrab(flat, 'Desired Printing Technology:');
+  if(tech && out.m === 'print'){
+    var tl = tech.toLowerCase();
+    for(var j=0; j<TECH_TO_PF.length; j++){
+      if(tl.indexOf(TECH_TO_PF[j][0]) >= 0){ out.p = TECH_TO_PF[j][1]; out.found = true; break; }
+    }
+  }
+  if(out.p && PF_TO_MATFIELD[out.p]){
+    var mv = descGrab(flat, PF_TO_MATFIELD[out.p]);
+    if(!mv && out.p==='sla') mv = descGrab(flat, 'Stereolithography Materials:');
+    if(mv){ out.mt = mv; out.found = true; }
+  }
+  var reqMap = [ ['Color/Opacity:','col'], ['Mechanical:','mech'], ['Resolution:','res'],
+                 ['Resistance:','env'], ['Biocompatibility:','bio'], ['Cost:','cost'] ];
+  out.rq = []; var det = [];
+  reqMap.forEach(function(rm){
+    var v = descGrab(flat, rm[0]);
+    if(v){ out.rq.push(rm[1]); det.push(rm[0].replace(':','') + ': ' + v); out.found = true; }
+  });
+  var feats = descGrab(flat, 'All Important Features:');
+  if(feats){ det.unshift('Features: ' + feats); out.found = true; }
+  if(det.length) out.rx = det.join(' \u00b7 ');
+  var coll = descGrab(flat, 'Collection/Delivery Preference:');
+  if(coll){
+    var cl = coll.toLowerCase();
+    if(cl.indexOf('davis') >= 0){ out.lc = 'davis'; out.found = true; }
+    else if(cl.indexOf('aggie square') >= 0 || cl.indexOf('sacramento') >= 0){ out.lc = 'as'; out.found = true; }
+  }
+  return out.found ? out : null;
+}
+function applyParsed(p){
+  var got = [];
+  if(p.m){ form.m = p.m; form.p = p.p || null; got.push(modOf(p.m).name + (p.p && pfOf(modOf(p.m), p.p) ? ' \u00b7 ' + pfOf(modOf(p.m), p.p).name : '')); }
+  renderModChips(); renderPfChips(); refreshMats(); refreshVars(); refreshMachs(); updateFieldVis();
+  if(p.mt){ $('fMat').value = p.mt; refreshVars(); got.push('material preference'); }
+  if(p.rq && p.rq.length){
+    form.rq = p.rq.slice(); renderReqChips();
+    if(p.rx) $('fReqx').value = p.rx;
+    got.push(p.rq.length + ' requirement' + (p.rq.length>1?'s':''));
+  }
+  if(p.lc){ form.lc = p.lc; renderLocSeg(); got.push(locName(p.lc)); }
+  return got;
+}
+function pullMsg(txt, err){
+  var m = $('pullMsg'); m.textContent = txt || ''; m.className = 'pullmsg' + (err ? ' err' : '');
+}
+function runParse(txt){
+  var p = parseDesc(txt);
+  if(!p){ pullMsg('No service details found in the description.', true); return; }
+  var got = applyParsed(p);
+  pullMsg('Pulled: ' + got.join(' \u00b7 '));
+}
+function pullFromCard(){
+  pullMsg('');
+  if(_t && _t.card){
+    try{
+      _t.card('desc').then(function(c){
+        runParse(c && c.desc);
+      }, function(){ pullMsg('Could not read the card description.', true); });
+      return;
+    }catch(e){ /* fall through to paste */ }
+  }
+  $('pasteGrp').classList.remove('hidden');
 }
 /* --- card settings: user-defined materials ------------------------------- */
 function custWhere(c){
@@ -973,6 +1124,12 @@ function initFullApp(){
   $('fSave').addEventListener('click', submitForm);
   $('fDev').addEventListener('change', function(){ setDev(this.checked); });
   $('fCp').addEventListener('change', function(){ setCp(this.checked); });
+  $('pullBtn').addEventListener('click', pullFromCard);
+  $('pasteCancel').addEventListener('click', function(){ $('pasteGrp').classList.add('hidden'); });
+  $('pasteParse').addEventListener('click', function(){
+    runParse($('descPaste').value);
+    $('pasteGrp').classList.add('hidden');
+  });
   $('gearBtn').addEventListener('click', function(){
     if($('settings').classList.contains('hidden')) openSettings(); else closeSettings();
   });
