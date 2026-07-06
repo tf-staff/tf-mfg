@@ -352,7 +352,7 @@
    - standalone : file opened directly in a browser -> full tool (browser-local persistence)
 ============================================================================ */
 var SELF = location.origin + location.pathname;
-var VERSION = '2.1';
+var VERSION = '2.2';
 var _t = null, _ready = false, _saveTimer = null, _sim = false;
 var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
@@ -925,7 +925,7 @@ var DESC_LABELS = [
   'Physician Email (bolus only):','Physician Email:','Department:','PI:','Project Billing:','Aggie Enterprise:',
   'Action and Budget:','Authorization','Max Budget:','Target Completion Date','Date of Request',
   'General Service Details:','ID ','Client Description:','Services:','Materials Furnished By:',
-  '3D Printing Expanded Details:','Selection Strategy:','Method:','Desired Printing Technology:',
+  '3D Printing Expanded Details:','Selection Strategy:','Method:','Desired Printing Technology:','Desired 3D Printing Technology:',
   'Client Defined Material','FDM Material:','Reinforced FDM Materials:','Polyjet Materials:',
   'Stereolithograpy Materials:','Stereolithography Materials:','Microfluidics Printer Materials:',
   'Desired Consultation:','Characteristics','All Important Features:','Color/Opacity:','Mechanical:',
@@ -936,16 +936,28 @@ var DESC_LABELS = [
 function flattenDesc(txt){
   return String(txt||'')
     .replace(/\[([^\]]*)\]\([^\)]*\)/g, '$1')   /* markdown links -> text */
+    .replace(/\\([\\`*_{}\[\]()#+\-.!<>])/g, '$1')  /* markdown escapes */
     .replace(/[*_#>`]/g, '')                      /* markdown tokens */
     .replace(/\s+/g, ' ');
 }
+function labelRe(label){
+  var e = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return new RegExp('(^|[\\s.,;:)\\]])(' + e + ')', 'i');   /* word-start anchored */
+}
+var _descBnds = null;
 function descGrab(flat, label){
-  var low = flat.toLowerCase(), i = low.indexOf(label.toLowerCase());
-  if(i < 0) return null;
-  var start = i + label.length, end = flat.length;
-  for(var k=0; k<DESC_LABELS.length; k++){
-    var j = low.indexOf(DESC_LABELS[k].toLowerCase(), start);
-    if(j >= 0 && j < end) end = j;
+  var m = labelRe(label).exec(flat);
+  if(!m) return null;
+  var start = m.index + m[0].length;
+  var end = flat.length;
+  if(!_descBnds) _descBnds = DESC_LABELS.map(labelRe);
+  var rest = flat.slice(start);
+  for(var k=0; k<_descBnds.length; k++){
+    var mm = _descBnds[k].exec(rest);
+    if(mm){
+      var pos = start + mm.index + mm[1].length;
+      if(pos < end) end = pos;
+    }
   }
   var v = flat.slice(start, end);
   v = v.replace(/^[\s:\-\u2013,]+/,'').replace(/[\s\-\u2013,]+$/,'').trim();
@@ -967,10 +979,11 @@ var TECH_TO_PF = [
   ['microfluidic','micro'],
   ['fdm','fdm'], ['fff','fdm']
 ];
-var PF_TO_MATFIELD = {
-  fdm:'FDM Material:', cffdm:'Reinforced FDM Materials:', polyjet:'Polyjet Materials:',
-  sla:'Stereolithograpy Materials:', micro:'Microfluidics Printer Materials:'
-};
+var MAT_FIELDS = [
+  ['fdm','FDM Material:'], ['cffdm','Reinforced FDM Materials:'], ['polyjet','Polyjet Materials:'],
+  ['sla','Stereolithograpy Materials:'], ['sla','Stereolithography Materials:'],
+  ['micro','Microfluidics Printer Materials:']
+];
 function parseDesc(txt){
   var flat = flattenDesc(txt);
   if(!flat.trim()) return null;
@@ -982,17 +995,32 @@ function parseDesc(txt){
       if(sl.indexOf(SERVICE_TO_MOD[i][0]) >= 0){ out.m = SERVICE_TO_MOD[i][1]; out.found = true; break; }
     }
   }
-  var tech = descGrab(flat, 'Desired Printing Technology:');
-  if(tech && out.m === 'print'){
+  var tech = descGrab(flat, 'Desired Printing Technology:') || descGrab(flat, 'Desired 3D Printing Technology:');
+  if(tech && (!out.m || out.m === 'print')){
     var tl = tech.toLowerCase();
     for(var j=0; j<TECH_TO_PF.length; j++){
-      if(tl.indexOf(TECH_TO_PF[j][0]) >= 0){ out.p = TECH_TO_PF[j][1]; out.found = true; break; }
+      if(tl.indexOf(TECH_TO_PF[j][0]) >= 0){
+        out.p = TECH_TO_PF[j][1];
+        out.m = out.m || 'print';   /* a printing technology implies the modality */
+        out.found = true; break;
+      }
     }
   }
-  if(out.p && PF_TO_MATFIELD[out.p]){
-    var mv = descGrab(flat, PF_TO_MATFIELD[out.p]);
-    if(!mv && out.p==='sla') mv = descGrab(flat, 'Stereolithography Materials:');
-    if(mv){ out.mt = mv; out.found = true; }
+  /* material preference: prefer the field matching the platform, else the
+     first non-empty one (and let it imply the platform) */
+  var matched = null, first = null;
+  for(var f=0; f<MAT_FIELDS.length; f++){
+    var mv = descGrab(flat, MAT_FIELDS[f][1]);
+    if(!mv) continue;
+    if(!first) first = { pf:MAT_FIELDS[f][0], v:mv };
+    if(out.p && MAT_FIELDS[f][0] === out.p && !matched) matched = { pf:MAT_FIELDS[f][0], v:mv };
+  }
+  var pick = matched || first;
+  if(pick && (!out.m || out.m === 'print')){
+    out.mt = pick.v;
+    if(!out.p){ out.p = pick.pf; }
+    out.m = out.m || 'print';
+    out.found = true;
   }
   var reqMap = [ ['Color/Opacity:','col'], ['Mechanical:','mech'], ['Resolution:','res'],
                  ['Resistance:','env'], ['Biocompatibility:','bio'], ['Cost:','cost'] ];
