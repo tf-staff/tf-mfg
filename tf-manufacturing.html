@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TF-Manufacturing — Tech Foundry Power-Up</title>
+<title>TF-Manufacture — Tech Foundry Power-Up</title>
 <script src="https://p.trellocdn.com/power-up.min.js"></script>
 <style>
   :root{
@@ -35,6 +35,7 @@
   .head{display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap}
   .title{display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:14px; color:var(--head)}
   .title svg{display:block; color:var(--dim)}
+  .verinline{font-weight:600; font-size:11px; color:var(--dimmer)}
   .savechip{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
   .savechip.ok{color:var(--text)}
   .savechip.err{color:var(--head);font-weight:700;border-color:var(--head)}
@@ -151,22 +152,21 @@
   .fbtn.cancel{background:var(--subtle); color:var(--dim)}
   .fbtn.cancel:hover{background:var(--subtle-h); color:var(--text)}
 
-  #verBadge{position:fixed;right:7px;bottom:6px;font-size:10px;color:#5b6b7a;opacity:.6;z-index:9;pointer-events:none}
-  body.tp-summary #verBadge,body.tp-connector #verBadge{display:none}
 
   /* ===== Trello card-back summary view ===== */
-  html[data-color-mode="light"]{--mf-bg:#ffffff;--mf-text:#292a2e;--mf-subtle:#6b6e76;--mf-dimmer:#84878d;--mf-line:#dcdfe4;--mf-btn:rgba(0,0,0,.05)}
-  html[data-color-mode="dark"]{--mf-bg:#242528;--mf-text:#cecfd2;--mf-subtle:#96999e;--mf-dimmer:#85878c;--mf-line:#46474b;--mf-btn:rgba(255,255,255,.08)}
+  html[data-color-mode="light"]{--mf-bg:#ffffff;--mf-text:#292a2e;--mf-subtle:#6b6e76;--mf-dimmer:#84878d;--mf-line:#dcdfe4;--mf-btn:rgba(0,0,0,.05);--mf-box:rgba(0,0,0,.035)}
+  html[data-color-mode="dark"]{--mf-bg:#242528;--mf-text:#cecfd2;--mf-subtle:#96999e;--mf-dimmer:#85878c;--mf-line:#46474b;--mf-btn:rgba(255,255,255,.08);--mf-box:rgba(255,255,255,.045)}
   html{background:transparent}
   body.tp-summary{background:var(--mf-bg,transparent)}
   body.tp-summary .panel,body.tp-connector .panel{display:none}
   body.tp-connector #summaryView{display:none}
   #summaryView{display:none;padding:2px 4px 4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  #svBody{background:var(--mf-box,rgba(255,255,255,.045));border-radius:8px;padding:10px 12px}
   body.tp-summary #summaryView{display:block}
   body.tp-summary{overflow-y:auto;overflow-x:hidden}
-  .fc-empty{font-size:12.5px;color:var(--mf-subtle,#96999e);padding:5px 0 2px}
-  .fc-note{padding:4px 0 5px;border-top:1px solid var(--mf-line,#46474b)}
-  .fc-note:first-child{border-top:none;padding-top:1px}
+  .fc-empty{font-size:12.5px;color:var(--mf-subtle,#96999e);padding:2px 0}
+  .fc-note{padding:0}
+  .fc-note + .fc-note{margin-top:11px}
   .fc-l1{display:flex;align-items:center;gap:7px;min-width:0}
   .fc-mod{flex:0 0 auto;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:1.5px 6px;color:var(--mf-text,#cecfd2);background:var(--mf-btn,rgba(255,255,255,.08));border:1px solid var(--mf-line,#46474b)}
   .fc-ttl{font-size:12px;font-weight:700;color:var(--mf-text,#cecfd2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -177,23 +177,18 @@
   .fc-cm{flex:0 0 auto;color:var(--mf-subtle,#96999e);display:inline-flex;align-items:center}
   .fc-by{margin-left:auto;flex:0 0 auto;font-size:10px;color:var(--mf-dimmer,#85878c);white-space:nowrap;font-variant-numeric:tabular-nums}
   .fc-snip{font-size:11px;color:var(--mf-subtle,#96999e);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;padding-left:2px}
-  .fc-more{font-size:11px;color:var(--mf-dimmer,#85878c);padding:4px 0 1px}
-  .sv-foot{display:flex;justify-content:flex-end;margin-top:4px}
-  .sv-ver{font-size:10px;color:var(--mf-subtle,#96999e);opacity:.6;font-variant-numeric:tabular-nums}
+  .fc-more{font-size:11px;color:var(--mf-dimmer,#85878c);margin-top:9px}
 </style>
 </head>
 <body>
 <div id="summaryView">
   <div id="svBody"></div>
-  <div class="sv-foot"><span class="sv-ver" id="svVer"></span></div>
 </div>
-<div id="verBadge"></div>
-
 <div class="panel">
   <div class="head">
     <span class="title">
       <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      Manufacturing Notes</span>
+      TF-Manufacture <span class="verinline" id="verInline"></span></span>
     <span class="savechip" id="saveChip" hidden></span>
     <div class="head-right">
       <div class="capwrap" title="Trello card storage used by this Power-Up (4 KB cap)">
@@ -356,7 +351,7 @@
    - standalone : file opened directly in a browser -> full tool (browser-local persistence)
 ============================================================================ */
 var SELF = location.origin + location.pathname;
-var VERSION = '1.9';
+var VERSION = '2.0';
 var _t = null, _ready = false, _saveTimer = null, _sim = false;
 var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
@@ -1176,9 +1171,9 @@ function estimateFaceHeight(d){
       d.n.slice(0, FC_MAX).forEach(function(e){ if(e.nt || e.st || e.dx) snips++; });
     }
   }catch(e){}
-  if(!n) return 64;
-  var h = 46 + n*27 + snips*17;
-  if(d.n.length > FC_MAX) h += 22;
+  if(!n) return 66;
+  var h = 40 + n*20 + (n-1)*11 + snips*17;
+  if(d.n.length > FC_MAX) h += 24;
   return Math.min(560, h);
 }
 
@@ -1205,7 +1200,7 @@ function initConnector(){
         var url = SELF + '?view=summary&cb=' + Date.now() + '&d=' + encodeURIComponent(dataStr);
         try{ if(t.signUrl) url = t.signUrl(url); }catch(e){}   // signed URLs authenticate the iframe's Trello channel
         return {
-          title: 'Manufacturing Notes',
+          title: 'TF-Manufacture v' + VERSION,
           icon: TRELLO_ICON,
           content: { type:'iframe', url: url, height: estimateFaceHeight(d) },
           action: { text: 'Open', callback: function(tt){
@@ -1238,7 +1233,6 @@ function initSummary(){
   _t = window._t = t;
   applyTheme(t);
   [150,500,1200,2500].forEach(function(ms){ setTimeout(function(){ applyTheme(t); }, ms); });
-  var vb = document.getElementById('svVer'); if(vb) vb.textContent = 'v' + VERSION;
   var settled = false;
   var finish = function(){
     if(settled) return; settled = true;
@@ -1293,7 +1287,7 @@ function boot(){
   var view = getParam('view');
   var framed = (window.self !== window.top);
   var hasTrello = (typeof window.TrelloPowerUp !== 'undefined');
-  var vb = document.getElementById('verBadge'); if(vb) vb.textContent = 'v' + VERSION;
+  var vb = document.getElementById('verInline'); if(vb) vb.textContent = 'v' + VERSION;
   if(hasTrello && framed && view==='summary'){ document.body.classList.add('tp-summary'); initSummary(); }
   else if(hasTrello && framed && view==='editor'){ initEditor(); }
   else if(hasTrello && framed && !view){ document.body.classList.add('tp-connector'); initConnector(); }
