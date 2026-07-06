@@ -162,11 +162,12 @@
   body.tp-connector #summaryView{display:none}
   #summaryView{display:none;padding:2px 4px 4px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   #svBody{background:var(--mf-box,rgba(255,255,255,.045));border-radius:8px;padding:10px 12px}
+  #svBody.nobox{background:transparent;border-radius:0;padding:3px 0 0}
   body.tp-summary #summaryView{display:block}
   body.tp-summary{overflow-y:auto;overflow-x:hidden}
   .fc-empty{font-size:12.5px;color:var(--mf-subtle,#96999e);padding:2px 0}
   .fc-note{padding:0}
-  .fc-note + .fc-note{margin-top:11px}
+  .fc-note + .fc-note{margin-top:9px; padding-top:9px; border-top:1px solid var(--mf-line,#46474b)}
   .fc-l1{display:flex;align-items:center;gap:7px;min-width:0}
   .fc-mod{flex:0 0 auto;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:1.5px 6px;color:var(--mf-text,#cecfd2);background:var(--mf-btn,rgba(255,255,255,.08));border:1px solid var(--mf-line,#46474b)}
   .fc-ttl{font-size:12px;font-weight:700;color:var(--mf-text,#cecfd2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -351,7 +352,7 @@
    - standalone : file opened directly in a browser -> full tool (browser-local persistence)
 ============================================================================ */
 var SELF = location.origin + location.pathname;
-var VERSION = '2.0';
+var VERSION = '2.1';
 var _t = null, _ready = false, _saveTimer = null, _sim = false;
 var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
@@ -1141,8 +1142,10 @@ var FC_MAX = 6;
 function renderSummary(){
   var body = document.getElementById('svBody'); if(!body) return;
   if(!state.notes.length){
+    body.classList.add('nobox');
     body.innerHTML = '<div class="fc-empty">No manufacturing notes</div>'; return;
   }
+  body.classList.remove('nobox');
   var h = '';
   state.notes.slice(0, FC_MAX).forEach(function(n){
     var mod = modOf(n.m) || modOf('other');
@@ -1171,8 +1174,8 @@ function estimateFaceHeight(d){
       d.n.slice(0, FC_MAX).forEach(function(e){ if(e.nt || e.st || e.dx) snips++; });
     }
   }catch(e){}
-  if(!n) return 66;
-  var h = 40 + n*20 + (n-1)*11 + snips*17;
+  if(!n) return 44;
+  var h = 40 + n*20 + (n-1)*19 + snips*17;
   if(d.n.length > FC_MAX) h += 24;
   return Math.min(560, h);
 }
