@@ -106,6 +106,7 @@
   /* ===== add/edit form ===== */
   .form{border:1px solid var(--line); background:var(--subtle); border-radius:8px;
     padding:11px 12px 12px; margin:4px 0 12px; display:flex; flex-direction:column; gap:10px}
+  #formRest{display:flex; flex-direction:column; gap:10px}
   .form.hidden{display:none}
   .fttl{font-size:11px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.06em}
   .fgrp{display:flex; flex-direction:column; gap:5px}
@@ -222,6 +223,7 @@
       <div class="chips" id="modChips"></div>
     </div>
 
+    <div id="formRest" hidden>
     <div class="fgrp" id="pfGrp" hidden>
       <label>Platform / Technology</label>
       <div class="chips" id="pfChips"></div>
@@ -238,10 +240,27 @@
         <input class="fin" id="fVar" list="varList" placeholder="Pick or type" autocomplete="off">
         <datalist id="varList"></datalist>
       </div>
-      <div class="fgrp">
+      <div class="fgrp" id="machGrp">
         <label>Machine / equipment</label>
         <input class="fin" id="fMach" list="machList" placeholder="Pick or type" autocomplete="off">
         <datalist id="machList"></datalist>
+      </div>
+    </div>
+
+    <div class="fgrp hidden" id="hwGrp" style="gap:8px">
+      <div class="frow3">
+        <div class="fgrp">
+          <label>Vendor</label>
+          <input class="fin" id="fVen">
+        </div>
+        <div class="fgrp">
+          <label>Part number</label>
+          <input class="fin" id="fPn">
+        </div>
+        <div class="fgrp">
+          <label>Quantity</label>
+          <input class="fin" id="fQty" inputmode="numeric">
+        </div>
       </div>
     </div>
 
@@ -301,6 +320,7 @@
     <div class="fgrp">
       <label class="cmtog"><input type="checkbox" id="fCm"> Additional context provided in comments</label>
     </div>
+    </div>
 
     <div class="facts">
       <span class="fwarn" id="fWarn" hidden></span>
@@ -352,7 +372,7 @@
    - standalone : file opened directly in a browser -> full tool (browser-local persistence)
 ============================================================================ */
 var SELF = location.origin + location.pathname;
-var VERSION = '2.2';
+var VERSION = '2.3';
 var _t = null, _ready = false, _saveTimer = null, _sim = false;
 var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
@@ -465,10 +485,6 @@ var MODS = [
       { id:'comp', name:'Compression Molding',
         mach:['Morgan Press GT-100T'],
         mats:['ABS','Acetal','Nylon','PLA','Polycarbonate','Polypropylene','TPE','TPU'] } ] },
-  { id:'comp', name:'Composites', abbr:'CMP', platforms:[
-      { id:'layup', name:'Hand Layup', mats:['Carbon Fiber + Epoxy','Fiberglass + Epoxy','Kevlar + Epoxy'] },
-      { id:'vacbag', name:'Vacuum Bagging', mats:['Carbon Fiber + Epoxy','Fiberglass + Epoxy','Kevlar + Epoxy'] },
-      { id:'inf', name:'Resin Infusion', mats:['Carbon Fiber + Epoxy','Fiberglass + Epoxy'] } ] },
   { id:'scan', name:'3D Scanning', abbr:'SCN', platforms:[
       { id:'slight', name:'Structured Light' },
       { id:'slaser', name:'Laser' },
@@ -485,8 +501,18 @@ var MODS = [
   { id:'pcb', name:'PCB Manufacturing', abbr:'PCB', platforms:[
       { id:'pcbmill', name:'Milling', mats:['FR4 (Copper Clad)','FR1'] },
       { id:'pcbetch', name:'Etching', mats:['FR4 (Copper Clad)','FR1'] } ] },
+  { id:'assy', name:'Assembly', abbr:'ASY', platforms:[] },
+  { id:'hw', name:'Hardware', abbr:'HW', platforms:[] },
   { id:'other', name:'Other', abbr:'OTH', platforms:[] }
 ];
+/* modality picker order: alphabetical, Other pinned last */
+function modsSorted(){
+  return MODS.slice().sort(function(a,b){
+    if(a.id==='other') return 1;
+    if(b.id==='other') return -1;
+    return a.name.localeCompare(b.name);
+  });
+}
 
 var LOCS = [
   { id:'',      name:'Location Undefined' },
@@ -529,6 +555,7 @@ var state = { notes: [], custom: [] };   // notes newest first; custom = per-car
 function packNote(n){
   var c = { i:n.i, t:n.t, by:n.by, m:n.m, p:n.p, mt:n.mt, vr:n.vr, mc:n.mc, st:n.st,
             of:n.of||undefined, pr:n.pr||undefined, cp:n.cp?1:undefined, cpn:n.cpn||undefined,
+            vn:n.vn||undefined, pn:n.pn||undefined, qy:n.qy||undefined,
             rq:(n.rq&&n.rq.length)?n.rq:undefined, rx:n.rx||undefined,
             dv:n.dv?1:undefined, dx:n.dx||undefined, o:n.o,
             lc:n.lc||undefined, cm:n.cm?1:undefined, nt:n.nt||undefined };
@@ -552,6 +579,7 @@ function hydrateState(d){
     return { i:e.i||String(Math.random()).slice(2,8), t:e.t||0, by:e.by||'', m:e.m||'other', p:e.p||'',
              mt:e.mt||'', vr:e.vr||'', mc:e.mc||'', st:e.st||'',
              of:e.of||'', pr:e.pr||'', cp:!!e.cp, cpn:e.cpn||'',
+             vn:e.vn||'', pn:e.pn||'', qy:e.qy||'',
              rq:Array.isArray(e.rq)?e.rq:[], rx:e.rx||'',
              dv:!!e.dv, dx:e.dx||'', o:e.o||'wip', lc:e.lc||'', cm:!!e.cm, nt:e.nt||'' };
   });
@@ -630,6 +658,7 @@ function noteTitle(n){
   if(pf) bits.push(pf.name); else if(n.p) bits.push(n.p);
   if(n.mt) bits.push(n.mt + (n.vr ? ' \u00b7 ' + n.vr : ''));
   else if(n.vr) bits.push(n.vr);
+  if(n.pn) bits.push('P/N ' + n.pn);
   return bits.join(' \u00b7 ');
 }
 function noteMeta(n){
@@ -668,6 +697,11 @@ function renderList(){
     h += '<span class="nact"><button class="icbtn edit" title="Edit">\u270e</button><button class="icbtn del" title="Delete">\u2715</button></span>';
     h += '</div>';
     var body = '';
+    if(n.vn || n.qy){
+      var hv = esc(n.vn || '');
+      if(n.qy) hv += (hv ? ' \u00b7 ' : '') + 'qty ' + esc(n.qy);
+      body += '<div class="nrow"><span class="k">Vendor</span><span class="v">' + hv + '</span></div>';
+    }
     if(n.st) body += '<div class="nrow"><span class="k">Settings</span><span class="v">' + esc(n.st) + '</span></div>';
     if(n.of) body += '<div class="nrow"><span class="k">Offset</span><span class="v">' + esc(n.of) + '</span></div>';
     if(n.pr || n.cp){
@@ -715,7 +749,7 @@ function chipRow(container, items, selectedId, onPick, cls){
   });
 }
 function renderModChips(){
-  chipRow($('modChips'), MODS, form.m, function(id){
+  chipRow($('modChips'), modsSorted(), form.m, function(id){
     form.m = id; form.p = null;
     renderModChips(); renderPfChips(); refreshMats(); refreshVars(); refreshMachs(); updateFieldVis();
   });
@@ -825,8 +859,12 @@ var NOMAT_MODS = ['scan','dicom'];
 var OFFSET_COLORS = ['Red','Black','Blue','Green','Yellow','Pink'];
 var OFFSET_FITS = ['strong interference','interference','light interference','clearance','generous clearance'];
 function updateFieldVis(){
+  $('formRest').hidden = !form.m;   /* rolling form: nothing below Modality until one is picked */
   var isCut = CUT_MODS.indexOf(form.m) >= 0;
   $('cutGrp').classList.toggle('hidden', !isCut);
+  var isHw = form.m === 'hw';
+  $('hwGrp').classList.toggle('hidden', !isHw);
+  $('machGrp').hidden = isHw;       /* purchased hardware has no in-house machine */
   var noMat = NOMAT_MODS.indexOf(form.m) >= 0;
   $('matGrp').hidden = noMat;
   $('varGrp').hidden = noMat;
@@ -860,6 +898,9 @@ function openForm(editId){
   $('fMach').value = n ? n.mc : '';
   $('fSet').value = n ? n.st : '';
   $('fOff').value = n ? (n.of||'') : '';
+  $('fVen').value = n ? (n.vn||'') : '';
+  $('fPn').value = n ? (n.pn||'') : '';
+  $('fQty').value = n ? (n.qy||'') : '';
   $('fProf').value = n ? (n.pr||'') : '';
   $('fCpn').value = n ? (n.cpn||'') : '';
   setCp(n ? !!n.cp : false);
@@ -894,6 +935,9 @@ function collectForm(){
     pr: CUT_MODS.indexOf(form.m)>=0 ? $('fProf').value.trim() : '',
     cp: CUT_MODS.indexOf(form.m)>=0 ? $('fCp').checked : false,
     cpn: (CUT_MODS.indexOf(form.m)>=0 && $('fCp').checked) ? $('fCpn').value.trim() : '',
+    vn: form.m==='hw' ? $('fVen').value.trim() : '',
+    pn: form.m==='hw' ? $('fPn').value.trim() : '',
+    qy: form.m==='hw' ? $('fQty').value.trim() : '',
     rq: form.rq.slice(), rx: form.rq.length ? $('fReqx').value.trim() : '',
     dv: form.dv, dx: form.dv ? $('fDevx').value.trim() : '',
     o: form.o, lc: form.lc, cm: $('fCm').checked, nt: $('fNote').value.trim()
@@ -967,7 +1011,7 @@ var SERVICE_TO_MOD = [
   ['3d printing','print'], ['laser','laser'], ['machining','mach'], ['waterjet','wjet'],
   ['sheet metal','sheet'], ['vacuum forming','vac'], ['vinyl','blade'],
   ['casting','cast'], ['roto-casting','cast'], ['injection molding','cast'],
-  ['composites','comp'], ['3d scanning','scan'], ['imaging data reconstruction','dicom'],
+  ['composites','other'], ['assembly','assy'], ['hardware','hw'], ['3d scanning','scan'], ['imaging data reconstruction','dicom'],
   ['dicom','dicom'], ['medical bolus','bolus'], ['pcb','pcb'],
   ['general development','other'], ['cad','other']
 ];
@@ -1042,6 +1086,7 @@ function parseDesc(txt){
 }
 function applyParsed(p){
   var got = [];
+  if(p.m && !modOf(p.m)) p.m = 'other';
   if(p.m){ form.m = p.m; form.p = p.p || null; got.push(modOf(p.m).name + (p.p && pfOf(modOf(p.m), p.p) ? ' \u00b7 ' + pfOf(modOf(p.m), p.p).name : '')); }
   renderModChips(); renderPfChips(); refreshMats(); refreshVars(); refreshMachs(); updateFieldVis();
   if(p.mt){ $('fMat').value = p.mt; refreshVars(); got.push('material preference'); }
@@ -1102,7 +1147,7 @@ function renderCustList(){
 }
 function renderCModSel(){
   var sel = $('cMod'); sel.innerHTML = '';
-  MODS.forEach(function(m){
+  modsSorted().forEach(function(m){
     var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o);
   });
   renderCPfSel();
