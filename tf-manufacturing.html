@@ -71,6 +71,10 @@
   .custrow .cw{color:var(--dimmer); font-size:11.5px; margin-left:auto; white-space:nowrap}
   .custrow .icbtn{flex:0 0 auto}
   .custempty{font-size:12px; color:var(--dimmer); padding:2px}
+  .inkrow{display:flex; gap:6px; flex-wrap:wrap}
+  .inkcell{display:flex; align-items:center; gap:4px}
+  .inkcell .il{font-size:11px; font-weight:700; color:var(--dim); min-width:14px; text-align:right}
+  .inkcell .fin{width:58px; text-align:right; padding:5px 7px}
 
   /* ===== note list ===== */
   .empty{font-size:12.5px; color:var(--dimmer); padding:14px 4px 8px; text-align:center}
@@ -283,25 +287,72 @@
       </div>
     </div>
 
-    <div class="fgrp">
+    <div class="fgrp hidden" id="uvGrp" style="gap:8px">
+      <div class="fgrp">
+        <label>Print surface / board</label>
+        <div class="oseg" id="bdSeg"></div>
+      </div>
+      <div class="fgrp">
+        <label>Ink used per cartridge (ml)</label>
+        <div class="inkrow" id="inkRow"></div>
+      </div>
+      <div class="frow3">
+        <div class="fgrp">
+          <label>White base layers</label>
+          <input class="fin" id="fWl" inputmode="numeric">
+        </div>
+        <div class="fgrp">
+          <label>CMYK layers</label>
+          <input class="fin" id="fCl" inputmode="numeric">
+        </div>
+        <div class="fgrp">
+          <label>Printing finish</label>
+          <div class="oseg" id="fnSeg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fgrp hidden" id="vpGrp" style="gap:8px">
+      <div class="frow3">
+        <div class="fgrp">
+          <label>Avg wall thickness (mm)</label>
+          <input class="fin" id="fVw" type="number" min="1" max="20" step="0.5">
+        </div>
+        <div class="fgrp">
+          <label>Intensity</label>
+          <div class="oseg" id="viSeg"></div>
+        </div>
+        <div class="fgrp">
+          <label>Chamber full</label>
+          <div class="oseg" id="vcSeg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fgrp hidden" id="dsGrp">
+      <label>File name</label>
+      <input class="fin" id="fFl">
+    </div>
+
+    <div class="fgrp" id="setGrp">
       <label>Process settings / parameters</label>
       <input class="fin" id="fSet">
     </div>
 
-    <div class="fgrp">
+    <div class="fgrp" id="reqGrp">
       <label>Client-defined requirements</label>
       <div class="chips" id="reqChips"></div>
       <input class="fin" id="fReqx" aria-label="Requirement detail" hidden>
     </div>
 
-    <div class="fgrp">
+    <div class="fgrp" id="devGrp">
       <label class="devtog" id="devTog"><input type="checkbox" id="fDev"> Deviation from SOP</label>
       <div class="devbox hidden" id="devBox">
         <textarea class="fin" id="fDevx"></textarea>
       </div>
     </div>
 
-    <div class="frow2">
+    <div class="frow2" id="olRow">
       <div class="fgrp">
         <label>Outcome</label>
         <div class="oseg" id="oSeg"></div>
@@ -372,7 +423,7 @@
    - standalone : file opened directly in a browser -> full tool (browser-local persistence)
 ============================================================================ */
 var SELF = location.origin + location.pathname;
-var VERSION = '2.3';
+var VERSION = '2.4';
 var _t = null, _ready = false, _saveTimer = null, _sim = false;
 var TRELLO_ICON = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>');
@@ -502,6 +553,12 @@ var MODS = [
       { id:'pcbmill', name:'Milling', mats:['FR4 (Copper Clad)','FR1'] },
       { id:'pcbetch', name:'Etching', mats:['FR4 (Copper Clad)','FR1'] } ] },
   { id:'assy', name:'Assembly', abbr:'ASY', platforms:[] },
+  { id:'uvp', name:'UV Printing', abbr:'UVP', platforms:[],
+    mach:['eufyMake E1 UV Printer'],
+    mats:['Unknown','Wood','Acrylic','Metal','Drawing Board','Plastic','Ceramics','Glass','Cotton Canvas','Polyester Canvas','Linen Canvas','Artificial Leather','Genuine Leather','Cardboard','Canvas','Leather','UV DTF Film','Stone'] },
+  { id:'vapor', name:'Vapor Polishing', abbr:'VAP', platforms:[],
+    mats:['PA12','PA11','TPU','ABS','ASA','PC-ABS'] },
+  { id:'design', name:'Design Files', abbr:'DSN', platforms:[] },
   { id:'hw', name:'Hardware', abbr:'HW', platforms:[] },
   { id:'other', name:'Other', abbr:'OTH', platforms:[] }
 ];
@@ -556,6 +613,10 @@ function packNote(n){
   var c = { i:n.i, t:n.t, by:n.by, m:n.m, p:n.p, mt:n.mt, vr:n.vr, mc:n.mc, st:n.st,
             of:n.of||undefined, pr:n.pr||undefined, cp:n.cp?1:undefined, cpn:n.cpn||undefined,
             vn:n.vn||undefined, pn:n.pn||undefined, qy:n.qy||undefined,
+            bd:n.bd||undefined, ic:n.ic||undefined, im:n.im||undefined, iy:n.iy||undefined,
+            ik:n.ik||undefined, iw:n.iw||undefined, ig:n.ig||undefined,
+            wl:n.wl||undefined, cl:n.cl||undefined, fs:n.fs||undefined,
+            vw:n.vw||undefined, vi:n.vi||undefined, vc:n.vc||undefined, fl:n.fl||undefined,
             rq:(n.rq&&n.rq.length)?n.rq:undefined, rx:n.rx||undefined,
             dv:n.dv?1:undefined, dx:n.dx||undefined, o:n.o,
             lc:n.lc||undefined, cm:n.cm?1:undefined, nt:n.nt||undefined };
@@ -580,6 +641,8 @@ function hydrateState(d){
              mt:e.mt||'', vr:e.vr||'', mc:e.mc||'', st:e.st||'',
              of:e.of||'', pr:e.pr||'', cp:!!e.cp, cpn:e.cpn||'',
              vn:e.vn||'', pn:e.pn||'', qy:e.qy||'',
+             bd:e.bd||'', ic:e.ic||'', im:e.im||'', iy:e.iy||'', ik:e.ik||'', iw:e.iw||'', ig:e.ig||'',
+             wl:e.wl||'', cl:e.cl||'', fs:e.fs||'', vw:e.vw||'', vi:e.vi||'', vc:e.vc||'', fl:e.fl||'',
              rq:Array.isArray(e.rq)?e.rq:[], rx:e.rx||'',
              dv:!!e.dv, dx:e.dx||'', o:e.o||'wip', lc:e.lc||'', cm:!!e.cm, nt:e.nt||'' };
   });
@@ -645,7 +708,7 @@ function loadCard(cb){
 
 /* ----- editor UI ---------------------------------------------------------- */
 var $ = function(id){ return document.getElementById(id); };
-var form = { open:false, editId:null, m:null, p:null, rq:[], o:'wip', lc:'', dv:false };
+var form = { open:false, editId:null, m:null, p:null, rq:[], o:'wip', lc:'', dv:false, bd:'', fs:'', vi:'', vc:'' };
 
 function fmtDate(t){
   if(!t) return '';
@@ -659,6 +722,7 @@ function noteTitle(n){
   if(n.mt) bits.push(n.mt + (n.vr ? ' \u00b7 ' + n.vr : ''));
   else if(n.vr) bits.push(n.vr);
   if(n.pn) bits.push('P/N ' + n.pn);
+  if(n.fl) bits.push(n.fl);
   return bits.join(' \u00b7 ');
 }
 function noteMeta(n){
@@ -703,6 +767,23 @@ function renderList(){
       body += '<div class="nrow"><span class="k">Vendor</span><span class="v">' + hv + '</span></div>';
     }
     if(n.st) body += '<div class="nrow"><span class="k">Settings</span><span class="v">' + esc(n.st) + '</span></div>';
+    var uvBits = [];
+    if(n.bd){ var _b = BOARDS.find(function(x){ return x.id===n.bd; }); uvBits.push(_b ? _b.name : n.bd); }
+    if(n.fs){ var _f = FINISHES.find(function(x){ return x.id===n.fs; }); uvBits.push('finish: ' + (_f ? _f.name.toLowerCase() : n.fs)); }
+    if(n.wl || n.cl){
+      var ly = [];
+      if(n.wl) ly.push(n.wl + ' white base');
+      if(n.cl) ly.push(n.cl + ' CMYK');
+      uvBits.push(ly.join(' / ') + ' layers');
+    }
+    if(uvBits.length) body += '<div class="nrow"><span class="k">UV print</span><span class="v">' + esc(uvBits.join(' \u00b7 ')) + '</span></div>';
+    var inkBits = INKS.filter(function(k){ return n[k[0]]; }).map(function(k){ return k[1] + ' ' + n[k[0]]; });
+    if(inkBits.length) body += '<div class="nrow"><span class="k">Ink (ml)</span><span class="v">' + esc(inkBits.join(' \u00b7 ')) + '</span></div>';
+    var vpBits = [];
+    if(n.vw) vpBits.push('wall ' + n.vw + ' mm');
+    if(n.vi) vpBits.push('intensity ' + (parseFloat(n.vi)>0?'+':'') + n.vi);
+    if(n.vc){ var _c = CHAMBERS.find(function(x){ return x.id===n.vc; }); vpBits.push('chamber ' + (_c ? _c.name.toLowerCase() : n.vc)); }
+    if(vpBits.length) body += '<div class="nrow"><span class="k">Vapor polish</span><span class="v">' + esc(vpBits.join(' \u00b7 ')) + '</span></div>';
     if(n.of) body += '<div class="nrow"><span class="k">Offset</span><span class="v">' + esc(n.of) + '</span></div>';
     if(n.pr || n.cp){
       var pv = esc(n.pr || '');
@@ -774,6 +855,7 @@ function currentMats(){
       });
     });
   }
+  if(!mats.length && mod && mod.mats) mats = mod.mats.slice();
   /* card-defined materials: match modality, and platform when one is set */
   state.custom.forEach(function(c){
     if(c.m !== form.m) return;
@@ -799,6 +881,7 @@ function refreshMachs(){
   var dl = $('machList'); dl.innerHTML = '';
   var mod = modOf(form.m), pf = pfOf(mod, form.p);
   var machs = (pf && pf.mach) ? pf.mach.slice() : [];
+  if(!machs.length && mod && mod.mach) machs = mod.mach.slice();
   if(!machs.length && mod){
     (mod.platforms||[]).forEach(function(p){
       (p.mach||[]).forEach(function(m){ if(machs.indexOf(m)<0) machs.push(m); });
@@ -855,7 +938,44 @@ function setDev(on){
    2D cutting (laser, waterjet, vinyl/blade); material and variant don't
    apply to scanning or imaging work. */
 var CUT_MODS = ['laser','wjet','blade'];
-var NOMAT_MODS = ['scan','dicom'];
+var NOMAT_MODS = ['scan','dicom','design'];
+var BOARDS = [
+  { id:'mini', name:'Mini flatbed' }, { id:'std', name:'Standard flatbed' },
+  { id:'rot', name:'Rotary' }, { id:'rtf', name:'Roll-to-film' }
+];
+var FINISHES = [ { id:'flat', name:'Flat' }, { id:'raised', name:'Flat raised' } ];
+var INKS = [ ['ic','C'], ['im','M'], ['iy','Y'], ['ik','K'], ['iw','W'], ['ig','Gloss'] ];
+var INTENSITIES = ['-3','-2','-1','0','1','2','3'].map(function(v){ return { id:v, name:(v>0?'+':'')+v }; });
+var CHAMBERS = [ { id:'25', name:'25%' }, { id:'50', name:'50%' }, { id:'75', name:'75%' },
+                 { id:'100', name:'100%' }, { id:'over', name:'Oversized' } ];
+function segRow(container, items, selectedId, onPick){
+  container.innerHTML = '';
+  items.forEach(function(it){
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = it.name;
+    b.setAttribute('aria-pressed', String(selectedId===it.id));
+    b.addEventListener('click', function(){ onPick(selectedId===it.id ? '' : it.id); });
+    container.appendChild(b);
+  });
+}
+function renderUvSegs(){
+  segRow($('bdSeg'), BOARDS, form.bd, function(id){ form.bd=id; renderUvSegs(); });
+  segRow($('fnSeg'), FINISHES, form.fs, function(id){ form.fs=id; renderUvSegs(); });
+}
+function renderVpSegs(){
+  segRow($('viSeg'), INTENSITIES, form.vi, function(id){ form.vi=id; renderVpSegs(); });
+  segRow($('vcSeg'), CHAMBERS, form.vc, function(id){ form.vc=id; renderVpSegs(); });
+}
+function buildInkRow(){
+  var c = $('inkRow'); if(c.children.length) return;
+  INKS.forEach(function(k){
+    var cell = document.createElement('span'); cell.className = 'inkcell';
+    var l = document.createElement('span'); l.className = 'il'; l.textContent = k[1];
+    var inp = document.createElement('input'); inp.className = 'fin'; inp.id = 'ink_' + k[0];
+    inp.inputMode = 'decimal';
+    cell.appendChild(l); cell.appendChild(inp); c.appendChild(cell);
+  });
+}
 var OFFSET_COLORS = ['Red','Black','Blue','Green','Yellow','Pink'];
 var OFFSET_FITS = ['strong interference','interference','light interference','clearance','generous clearance'];
 function updateFieldVis(){
@@ -864,7 +984,20 @@ function updateFieldVis(){
   $('cutGrp').classList.toggle('hidden', !isCut);
   var isHw = form.m === 'hw';
   $('hwGrp').classList.toggle('hidden', !isHw);
-  $('machGrp').hidden = isHw;       /* purchased hardware has no in-house machine */
+  var isUv = form.m === 'uvp';
+  var isVp = form.m === 'vapor';
+  var isDs = form.m === 'design';
+  $('uvGrp').classList.toggle('hidden', !isUv);
+  $('vpGrp').classList.toggle('hidden', !isVp);
+  $('dsGrp').classList.toggle('hidden', !isDs);
+  if(isUv){ buildInkRow(); renderUvSegs(); }
+  if(isVp){ renderVpSegs(); }
+  /* design-file notes are just file name + notes */
+  $('setGrp').hidden = isDs;
+  $('reqGrp').hidden = isDs;
+  $('devGrp').hidden = isDs;
+  $('olRow').hidden = isDs;
+  $('machGrp').hidden = isHw || isDs;   /* purchased hardware / design files have no in-house machine */
   var noMat = NOMAT_MODS.indexOf(form.m) >= 0;
   $('matGrp').hidden = noMat;
   $('varGrp').hidden = noMat;
@@ -901,6 +1034,16 @@ function openForm(editId){
   $('fVen').value = n ? (n.vn||'') : '';
   $('fPn').value = n ? (n.pn||'') : '';
   $('fQty').value = n ? (n.qy||'') : '';
+  form.bd = n ? (n.bd||'') : '';
+  form.fs = n ? (n.fs||'') : '';
+  form.vi = n ? (n.vi||'') : '';
+  form.vc = n ? (n.vc||'') : '';
+  buildInkRow();
+  INKS.forEach(function(k){ $('ink_'+k[0]).value = n ? (n[k[0]]||'') : ''; });
+  $('fWl').value = n ? (n.wl||'') : '';
+  $('fCl').value = n ? (n.cl||'') : '';
+  $('fVw').value = n ? (n.vw||'') : '';
+  $('fFl').value = n ? (n.fl||'') : '';
   $('fProf').value = n ? (n.pr||'') : '';
   $('fCpn').value = n ? (n.cpn||'') : '';
   setCp(n ? !!n.cp : false);
@@ -938,6 +1081,20 @@ function collectForm(){
     vn: form.m==='hw' ? $('fVen').value.trim() : '',
     pn: form.m==='hw' ? $('fPn').value.trim() : '',
     qy: form.m==='hw' ? $('fQty').value.trim() : '',
+    bd: form.m==='uvp' ? form.bd : '',
+    ic: form.m==='uvp' ? $('ink_ic').value.trim() : '',
+    im: form.m==='uvp' ? $('ink_im').value.trim() : '',
+    iy: form.m==='uvp' ? $('ink_iy').value.trim() : '',
+    ik: form.m==='uvp' ? $('ink_ik').value.trim() : '',
+    iw: form.m==='uvp' ? $('ink_iw').value.trim() : '',
+    ig: form.m==='uvp' ? $('ink_ig').value.trim() : '',
+    wl: form.m==='uvp' ? $('fWl').value.trim() : '',
+    cl: form.m==='uvp' ? $('fCl').value.trim() : '',
+    fs: form.m==='uvp' ? form.fs : '',
+    vw: form.m==='vapor' ? $('fVw').value.trim() : '',
+    vi: form.m==='vapor' ? form.vi : '',
+    vc: form.m==='vapor' ? form.vc : '',
+    fl: form.m==='design' ? $('fFl').value.trim() : '',
     rq: form.rq.slice(), rx: form.rq.length ? $('fReqx').value.trim() : '',
     dv: form.dv, dx: form.dv ? $('fDevx').value.trim() : '',
     o: form.o, lc: form.lc, cm: $('fCm').checked, nt: $('fNote').value.trim()
@@ -1011,7 +1168,7 @@ var SERVICE_TO_MOD = [
   ['3d printing','print'], ['laser','laser'], ['machining','mach'], ['waterjet','wjet'],
   ['sheet metal','sheet'], ['vacuum forming','vac'], ['vinyl','blade'],
   ['casting','cast'], ['roto-casting','cast'], ['injection molding','cast'],
-  ['composites','other'], ['assembly','assy'], ['hardware','hw'], ['3d scanning','scan'], ['imaging data reconstruction','dicom'],
+  ['composites','other'], ['assembly','assy'], ['hardware','hw'], ['uv print','uvp'], ['vapor','vapor'], ['3d scanning','scan'], ['imaging data reconstruction','dicom'],
   ['dicom','dicom'], ['medical bolus','bolus'], ['pcb','pcb'],
   ['general development','other'], ['cad','other']
 ];
