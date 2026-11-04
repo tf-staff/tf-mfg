@@ -4,6 +4,10 @@ Manufacturing documentation Power-Up for the UC Davis Tech Foundry (Davis/GBSF +
 
 **Current version: 2.4** — the whole Power-Up is the single file `tf-manufacturing.html`, served via GitHub Pages from this repo. The Trello Power-Up's iframe connector URL points at that file. There is no build step: edit the file, bump `VERSION`, push.
 
+## Release workflow (owner-approved standing permission)
+
+The owner is not a developer; explain things plainly. **Always merge to `main` immediately after development and testing are complete** — no PR, no waiting for review. Develop on the session's working branch, test (see convention 3), then push the same commit to `main` so GitHub Pages serves it to Trello. Every commit message starts with the new version, e.g. `v2.5: add X`. Git history is the backup: to roll back ("go back to 2.3"), restore that version's file and ship it as a new commit with a bumped version — never rewrite or delete history. To undo one change from a multi-change release, revert only that change. Rollbacks don't touch Trello card data, but older versions may not render fields added after them (e.g. 2.3 shows UV notes as Other).
+
 ## Non-negotiable conventions
 
 1. **Bump `var VERSION` on every functional or visual change.** The card-back section title renders as "TF-Manufacture v2.4", which is the only quick way to confirm Trello's iframe cache picked up a push.
